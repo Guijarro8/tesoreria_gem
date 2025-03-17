@@ -11,8 +11,8 @@ Este proyecto utiliza Streamlit para crear una interfaz de usuario que permite a
 ## Requisitos
 
 - Python 
-- requirements
-- Cuenta de Google con acceso a Google Sh
+- Librerías en requirements.txt
+- Cuenta de Google con acceso a Google Sheets
 
 ## Instalación
 
