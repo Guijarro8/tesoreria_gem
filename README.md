@@ -1,4 +1,4 @@
-# Proyecto de Tesorería de Asociación con Streamlit y Google Sheets
+# Proyecto de Tesorería GEM
 
 Este proyecto utiliza Streamlit para crear una interfaz de usuario que permite actualizar una hoja de cálculo de Google Sheets con datos de tesorería del GEM.
 
