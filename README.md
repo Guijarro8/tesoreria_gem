@@ -14,10 +14,4 @@ Este proyecto utiliza Streamlit para crear una interfaz de usuario que permite a
 - Librerías en requirements.txt
 - Cuenta de Google con acceso a Google Sheets
 
-## Instalación
 
-1. **Clonar el Repositorio**:
-
-   ```bash
-   git clone https://github.com/tu-usuario/proyecto-tesoreria.git
-   cd proyecto-tesoreria
