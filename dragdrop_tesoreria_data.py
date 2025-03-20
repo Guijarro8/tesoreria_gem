@@ -54,7 +54,7 @@ if uploaded_file is not None:
         data["concepto"] = data["concepto"].str.lower()
 
         df_to_upload = {}
-        df_to_upload['general'] = data.copy()
+        df_to_upload["general"] = data.copy()
         # agrupación cuotas
         grouped_data = (
             data[data["tipo"] == "cuota"]
@@ -64,37 +64,49 @@ if uploaded_file is not None:
         )
 
         # pivot para generar el formato que queremos
-        pivot_table = grouped_data.pivot(index="concepto", columns="mes_anio", values="importe_sum").reset_index()
+        pivot_table = grouped_data.pivot(
+            index="concepto", columns="mes_anio", values="importe_sum"
+        ).reset_index()
 
         # El importe total pagado
-        pivot_table["importe pagado total"] = pivot_table.iloc[:, 1:].sum(axis=1, skipna=True)
+        pivot_table["importe pagado total"] = pivot_table.iloc[:, 1:].sum(
+            axis=1, skipna=True
+        )
 
         # conteo de null para obtener el número de cuotas pagadas
-        pivot_table["numero cuotas pagadas"] = pivot_table.shape[1] - pivot_table.iloc[:, 1:].isna().sum(axis=1) -2
-        df_to_upload['cuotas'] = pivot_table[['concepto'] + [col for col in list(pivot_table.columns)[::-1] if col != 'concepto']]
-        
+        pivot_table["numero cuotas pagadas"] = (
+            pivot_table.shape[1] - pivot_table.iloc[:, 1:].isna().sum(axis=1) - 2
+        )
+        df_to_upload["cuotas"] = pivot_table[
+            ["concepto"]
+            + [col for col in list(pivot_table.columns)[::-1] if col != "concepto"]
+        ]
+
         # división de los datos
-        for data_type in ['gasto', 'varios']:
-            df_to_upload[data_type] = data[data['tipo'] == data_type].drop(columns='saldo')
+        for data_type in ["gasto", "varios"]:
+            df_to_upload[data_type] = data[data["tipo"] == data_type].drop(
+                columns="saldo"
+            )
 
-        data_types = ["cuotas", "general",'gasto', 'varios']
+        data_types = ["cuotas", "general", "gasto", "varios"]
         for i in range(len(data_types)):
-
-            #llenar nulos con vacio
-            df_to_upload[data_types[i]] = df_to_upload[data_types[i]].fillna('-')
-            #borrar formato fecha
+            # llenar nulos con vacio
+            df_to_upload[data_types[i]] = df_to_upload[data_types[i]].fillna("-")
+            # borrar formato fecha
             if data_types[i] != "cuotas":
-                df_to_upload[data_types[i]]["fecha"]  = df_to_upload[data_types[i]]["fecha"].astype(str)
+                df_to_upload[data_types[i]]["fecha"] = df_to_upload[data_types[i]][
+                    "fecha"
+                ].astype(str)
 
-            #Formatear y subir a google sheets 
-            upload_formated_data = [df_to_upload[data_types[i]].columns.tolist()] + df_to_upload [data_types[i]].values.tolist()
-            
+            # Formatear y subir a google sheets
+            upload_formated_data = [
+                df_to_upload[data_types[i]].columns.tolist()
+            ] + df_to_upload[data_types[i]].values.tolist()
+
             if data_types[i] == "cuotas":
-                sheet.get_worksheet(i + 1).update('B1',upload_formated_data)
+                sheet.get_worksheet(i + 1).update("B1", upload_formated_data)
             else:
                 sheet.get_worksheet(i + 1).update(upload_formated_data)
-             
-
 
         st.success(
             "The existing file has been successfully replaced! https://docs.google.com/spreadsheets/d/1S_lDqsjC0cuyJF2a0BcRB-eW5RXaLo_tlosoNS9IJvM/edit?gid=0#gid=0"
