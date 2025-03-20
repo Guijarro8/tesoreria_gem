@@ -88,7 +88,11 @@ if uploaded_file is not None:
 
             #Formatear y subir a google sheets 
             upload_formated_data = [df_to_upload[data_types[i]].columns.tolist()] + df_to_upload [data_types[i]].values.tolist()
-            sheet.get_worksheet(i + 1).update(upload_formated_data)
+            
+            if data_types[i] == "cuotas":
+                sheet.get_worksheet(i + 1).update('B1',upload_formated_data)
+            else:
+                sheet.get_worksheet(i + 1).update(upload_formated_data)
              
 
 
