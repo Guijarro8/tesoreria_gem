@@ -62,5 +62,5 @@ print(json.dumps(credentials))
 ### Ejecución
 
 ```bash
-streamlit run dragdrop_tesoreria_data.py
+streamlit run main.py
 ```
