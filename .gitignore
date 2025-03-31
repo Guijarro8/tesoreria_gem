@@ -3,3 +3,5 @@ guias-gem-tesoreria-service-account.json
 process_sabadel_to_sheets.ipynb
 data/
 dragdrop_tesoreria_nb.ipynb
+__pycache__
+.ipynb_checkpoints
