@@ -47,6 +47,7 @@ def test_directory_maps_all_alias_columns_to_the_same_member() -> None:
     assert directory.aliases["synthetic alias a"] == "Synthetic Member A"
     assert directory.settings.inactive_after_months == 12
     assert directory.settings.single_payment_grace_months == 3
+    assert directory.suspicious_aliases == {}
 
 
 def test_directory_rejects_duplicate_member_names() -> None:
@@ -72,14 +73,13 @@ def test_matching_uses_aliases_and_reports_unresolved_fee_payments() -> None:
 
     matched, report = members.match_movements(movements, directory)
 
-    assert matched["miembro"].tolist()[0:2] == [
-        "Synthetic Member A",
-        "Synthetic Member B",
-    ]
+    assert matched["miembro"].iloc[0] == "Synthetic Member A"
+    assert matched["miembro"].iloc[1] == "Synthetic Member B"
     assert pd.isna(matched["miembro"].iloc[2])
     assert report.matched_fee_payments == 2
     assert report.unmatched_aliases == ("unknown alias",)
     assert report.ambiguous_aliases == ()
+    assert report.suspicious_aliases == ()
 
 
 def test_ambiguous_aliases_are_not_assigned_to_a_member() -> None:
@@ -99,25 +99,22 @@ def test_ambiguous_aliases_are_not_assigned_to_a_member() -> None:
     assert pd.isna(matched["miembro"].iloc[0])
     assert report.matched_fee_payments == 0
     assert report.ambiguous_aliases == ("shared synthetic alias",)
+    assert report.suspicious_aliases == ()
 
 
-def test_confirmed_aliases_take_precedence_over_loose_normalization() -> None:
+def test_alias_similar_to_another_member_is_flagged_and_not_matched() -> None:
     rows = member_rows()
-    rows[0]["Alias 2"] = "synthetic alias x y"
-    rows[1]["Alias 2"] = "synthetic alias x.y"
+    rows[0]["Alias 2"] = "synthetic member bee"
     directory = members.build_member_directory(rows, settings_rows())
     movements = pd.DataFrame(
         {
-            "concepto": ["synthetic alias x y", "synthetic alias x.y"],
-            "tipo": ["cuota", "cuota"],
+            "concepto": ["synthetic member bee"],
+            "tipo": ["cuota"],
         }
     )
 
     matched, report = members.match_movements(movements, directory)
 
-    assert matched["miembro"].tolist() == [
-        "Synthetic Member A",
-        "Synthetic Member B",
-    ]
-    assert report.matched_fee_payments == 2
-    assert report.ambiguous_aliases == ()
+    assert pd.isna(matched["miembro"].iloc[0])
+    assert report.matched_fee_payments == 0
+    assert report.suspicious_aliases == ("synthetic member bee",)

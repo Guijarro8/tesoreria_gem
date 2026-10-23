@@ -67,6 +67,8 @@ Usa una fila por socio:
   por `Alias`, por lo que se pueden añadir más columnas si fueran necesarias.
 - No puede haber dos socios con el mismo nombre normalizado, ni un alias asignado
   a dos socios.
+- Un alias que se parezca demasiado al nombre o alias de otro socio se bloquea
+  para revisión, aunque esté escrito como una coincidencia exacta.
 
 ### Hoja `Ajustes`
 
@@ -77,7 +79,8 @@ Usa una fila por socio:
 
 La fecha de referencia es la última transacción del extracto cargado. Un pago
 único solo cuenta si tiene tres meses o menos. La aplicación avisa de las
-transferencias sin identificar, los alias ambiguos y los socios excluidos.
+transferencias sin identificar, los alias ambiguos o pertenecientes probablemente
+a otro socio y los socios excluidos.
 
 ## Ejecución
 

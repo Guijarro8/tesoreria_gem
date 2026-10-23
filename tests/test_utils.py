@@ -39,6 +39,7 @@ def empty_matching_report() -> members.MatchingReport:
         matched_fee_payments=0,
         unmatched_aliases=(),
         ambiguous_aliases=(),
+        suspicious_aliases=(),
     )
 
 
@@ -155,6 +156,52 @@ def test_extract_cuotas_returns_an_empty_table_without_eligible_payments() -> No
         "miembro",
         "numero_cuotas_pagadas",
         "importe_pagado_total",
+    ]
+
+
+def test_extract_cuotas_sorts_by_accent_insensitive_name_without_rewriting_it() -> None:
+    member_rows: list[dict[str, object]] = [
+        {
+            "Nombre": "Zulu Synthetic",
+            "Estado": "activo",
+            "Alias 1": "zulu alias",
+        },
+        {
+            "Nombre": "Álvaro Synthetic",
+            "Estado": "activo",
+            "Alias 1": "alvaro alias",
+        },
+    ]
+    settings_rows: list[dict[str, object]] = [
+        {
+            "Parámetro": constants.SETTING_INACTIVE_AFTER_MONTHS,
+            "Valor": 12,
+        },
+        {
+            "Parámetro": constants.SETTING_SINGLE_PAYMENT_GRACE_MONTHS,
+            "Valor": 3,
+        },
+    ]
+    directory = members.build_member_directory(member_rows, settings_rows)
+    movements = pd.DataFrame(
+        {
+            "fecha": pd.to_datetime(["2025-12-01", "2025-12-01"]),
+            "miembro": ["Zulu Synthetic", "Álvaro Synthetic"],
+            "tipo": ["cuota", "cuota"],
+            "mes_anio": ["2025-12", "2025-12"],
+            "importe": [30, 30],
+        }
+    )
+
+    cuotas, _report = utils.extract_cuotas(
+        movements,
+        directory,
+        empty_matching_report(),
+    )
+
+    assert cuotas["miembro"].tolist() == [
+        "Álvaro Synthetic",
+        "Zulu Synthetic",
     ]
 
 

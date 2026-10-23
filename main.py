@@ -41,6 +41,10 @@ def _show_report(report: utils.FeeReport) -> None:
     st.metric("Pagos de cuota reconocidos", matching.matched_fee_payments)
     _show_names("Transferencias de cuota sin identificar", matching.unmatched_aliases)
     _show_names("Alias ambiguos", matching.ambiguous_aliases)
+    _show_names(
+        "Alias posiblemente asignados a otro socio",
+        matching.suspicious_aliases,
+    )
     _show_names("Socios excluidos como inactivos", report.excluded_inactive_members)
     _show_names(
         "Pagos únicos antiguos excluidos",
@@ -48,10 +52,10 @@ def _show_report(report: utils.FeeReport) -> None:
     )
     _show_names("Socios sin cuota en 12 meses", report.excluded_stale_members)
 
-    if matching.ambiguous_aliases:
+    if matching.ambiguous_aliases or matching.suspicious_aliases:
         st.error(
-            "Hay alias asignados a más de un socio. Corrige el directorio antes "
-            "de actualizar la hoja."
+            "Hay alias ambiguos o muy parecidos al nombre de otro socio. Corrige "
+            "el directorio antes de actualizar la hoja."
         )
     elif matching.unmatched_aliases:
         st.warning(
@@ -89,7 +93,10 @@ def main() -> None:
 
     if st.button(
         "Replace Existing File",
-        disabled=bool(processed.report.matching.ambiguous_aliases),
+        disabled=bool(
+            processed.report.matching.ambiguous_aliases
+            or processed.report.matching.suspicious_aliases
+        ),
     ):
         try:
             tesoreria_gem_key = _read_secret("tesoreria_gem_key")

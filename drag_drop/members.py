@@ -6,6 +6,7 @@ import unicodedata
 from collections import defaultdict
 from collections.abc import Callable, Mapping, Sequence
 from dataclasses import dataclass
+from difflib import SequenceMatcher
 from typing import Literal, cast
 
 import gspread
@@ -42,6 +43,7 @@ class MemberDirectory:
     aliases: Mapping[str, str]
     ambiguous_exact_aliases: Mapping[str, tuple[str, ...]]
     ambiguous_aliases: Mapping[str, tuple[str, ...]]
+    suspicious_aliases: Mapping[str, tuple[str, ...]]
     settings: DirectorySettings
 
     @property
@@ -57,6 +59,7 @@ class MatchingReport:
     matched_fee_payments: int
     unmatched_aliases: tuple[str, ...]
     ambiguous_aliases: tuple[str, ...]
+    suspicious_aliases: tuple[str, ...]
 
 
 def normalize_name(value: object) -> str:
@@ -88,10 +91,13 @@ def _without_accents(value: str) -> str:
 def _build_alias_lookup(
     members: Sequence[Member],
     normalizer: Callable[[object], str],
+    excluded_aliases: set[str],
 ) -> tuple[dict[str, str], dict[str, tuple[str, ...]]]:
     alias_owners: defaultdict[str, set[str]] = defaultdict(set)
     for member in members:
         for alias in (member.name, *member.aliases):
+            if alias in excluded_aliases:
+                continue
             normalized_alias = normalizer(alias)
             if normalized_alias:
                 alias_owners[normalized_alias].add(member.name)
@@ -104,6 +110,42 @@ def _build_alias_lookup(
         else:
             ambiguous_aliases[normalized_alias] = tuple(sorted(owners))
     return aliases, ambiguous_aliases
+
+
+def _find_suspicious_aliases(
+    members: Sequence[Member],
+) -> tuple[dict[str, tuple[str, ...]], set[str]]:
+    suspicious: defaultdict[str, set[str]] = defaultdict(set)
+    excluded_aliases: set[str] = set()
+
+    for member in members:
+        for alias in member.aliases:
+            compact_alias = normalize_name(alias).replace(" ", "")
+            candidates: set[str] = set()
+            for other_member in members:
+                if other_member.name == member.name:
+                    continue
+                compact_candidate = normalize_name(other_member.name).replace(" ", "")
+                similarity = SequenceMatcher(
+                    None,
+                    compact_alias,
+                    compact_candidate,
+                ).ratio()
+                if similarity >= constants.ALIAS_CONFLICT_THRESHOLD:
+                    candidates.add(other_member.name)
+
+            if candidates:
+                normalized_alias = normalize_name(alias)
+                suspicious[normalized_alias].update(candidates)
+                excluded_aliases.add(alias)
+
+    return (
+        {
+            normalized_alias: tuple(sorted(candidates))
+            for normalized_alias, candidates in suspicious.items()
+        },
+        excluded_aliases,
+    )
 
 
 def _parse_positive_int(value: object, setting_name: str) -> int:
@@ -158,11 +200,17 @@ def build_member_directory(
     if not members:
         raise ValueError("The member directory has no member rows.")
 
+    suspicious_aliases, excluded_aliases = _find_suspicious_aliases(members)
     exact_aliases, ambiguous_exact_aliases = _build_alias_lookup(
         members,
         normalize_exact_name,
+        excluded_aliases,
     )
-    aliases, ambiguous_aliases = _build_alias_lookup(members, normalize_name)
+    aliases, ambiguous_aliases = _build_alias_lookup(
+        members,
+        normalize_name,
+        excluded_aliases,
+    )
 
     settings = {
         str(row.get("Parámetro", "")).strip(): row.get("Valor") for row in settings_rows
@@ -190,6 +238,7 @@ def build_member_directory(
         aliases=aliases,
         ambiguous_exact_aliases=ambiguous_exact_aliases,
         ambiguous_aliases=ambiguous_aliases,
+        suspicious_aliases=suspicious_aliases,
         settings=directory_settings,
     )
 
@@ -228,21 +277,34 @@ def match_movements(
     matched.loc[fallback_mask, "miembro"] = fallback_assignment.loc[fallback_mask]
 
     fee_mask = matched["tipo"] == "cuota"
+    suspicious_mask = normalized_concepts.isin(directory.suspicious_aliases)
+    matched.loc[suspicious_mask, "miembro"] = pd.NA
     matched_mask = matched["miembro"].notna()
     ambiguous_mask = exact_concepts.isin(directory.ambiguous_exact_aliases) | (
         fallback_mask & normalized_concepts.isin(directory.ambiguous_aliases)
     )
-    unknown_mask = fee_mask & ~matched_mask & ~ambiguous_mask
+    unknown_mask = fee_mask & ~matched_mask & ~ambiguous_mask & ~suspicious_mask
 
     unmatched_aliases = tuple(
         sorted(matched.loc[unknown_mask, "concepto"].astype(str).unique())
     )
     ambiguous_aliases = tuple(
-        sorted(matched.loc[ambiguous_mask & fee_mask, "concepto"].astype(str).unique())
+        sorted(
+            set(directory.ambiguous_exact_aliases)
+            | set(directory.ambiguous_aliases)
+            | set(matched.loc[ambiguous_mask & fee_mask, "concepto"].astype(str))
+        )
+    )
+    suspicious_aliases = tuple(
+        sorted(
+            set(directory.suspicious_aliases)
+            | set(matched.loc[suspicious_mask & fee_mask, "concepto"].astype(str))
+        )
     )
     report = MatchingReport(
         matched_fee_payments=int((fee_mask & matched_mask).sum()),
         unmatched_aliases=unmatched_aliases,
         ambiguous_aliases=ambiguous_aliases,
+        suspicious_aliases=suspicious_aliases,
     )
     return matched, report

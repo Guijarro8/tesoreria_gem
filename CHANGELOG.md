@@ -42,6 +42,10 @@ and invalid interfaces are now visible to ty.
 - Added accent, punctuation, casing, and whitespace normalization before matching.
 - Consolidated aliases to canonical member names and reported unmatched or
   ambiguous fee-like transfers.
+- Added cross-member similarity validation so an alias resembling another member
+  is blocked instead of silently matching the wrong person.
+- Sorted fee rows alphabetically using accent-insensitive keys while preserving
+  the original accented display names.
 - Added configurable 12-month inactivity and 3-month single-payment grace rules.
 - Removed manual fee-name columns from overwrite handling; uploads now clear stale
   rows and write the generated table from column A.
@@ -81,7 +85,7 @@ from the repository documentation, without committing generated files.
 - Ruff lint: passed.
 - Ruff format check: passed.
 - ty check: passed.
-- pytest: 10 tests passed.
+- pytest: 11 tests passed.
 - pre-commit: all four hooks passed.
 - Streamlit headless startup: passed at `http://localhost:8765`.
 

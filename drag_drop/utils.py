@@ -84,6 +84,11 @@ def extract_cuotas(
     pivot_table = grouped_data.pivot(
         index="miembro", columns="mes_anio", values="importe_sum"
     ).reset_index()
+    pivot_table = pivot_table.sort_values(
+        "miembro",
+        key=lambda names: names.map(members.normalize_name),
+        kind="stable",
+    ).reset_index(drop=True)
 
     period_columns = pivot_table.columns[1:]
 
