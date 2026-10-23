@@ -6,8 +6,8 @@
 - Before starting work, fetch `origin/master` and create a new feature branch
   from it. Keep unrelated changes on separate branches.
 - Run `uv run pre-commit run --all-files` before pushing a feature branch.
-- Open a pull request targeting `master`; do not attempt to bypass its branch
-  protection rules.
+- Do not create pull requests or merge them. The repository owner creates and
+  merges PRs manually; do not attempt to bypass `master` protection rules.
 - Never commit, log, or expose real member names, transfer descriptions, bank
   exports, service-account credentials, or private lookup data. Keep those files
   under `private/`, which is ignored, and use synthetic names in tests.

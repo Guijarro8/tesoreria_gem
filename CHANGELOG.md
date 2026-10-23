@@ -54,6 +54,19 @@ and invalid interfaces are now visible to ty.
 payments are excluded with notices, and the generated name column cannot drift
 from the member directory.
 
+### Financial report
+
+- Added a formula-driven `Informe` worksheet with editable `Desde` and `Hasta`
+  date controls.
+- Added dynamic totals for member fees, other income, total income, costs, and
+  net balance.
+- Added a monthly evolution table and a formula-driven top-ten expense query.
+- Made formulas locale-aware so Spanish Google Sheets accounts use semicolon
+  argument separators.
+
+**Impact:** the report can be explored and recalculated directly in Google Sheets
+without running Streamlit after its initial creation.
+
 ### Bug fixes
 
 - Fixed the call to `Worksheet.update()` for the fee worksheet. The range (`B1`)
@@ -85,7 +98,7 @@ from the repository documentation, without committing generated files.
 - Ruff lint: passed.
 - Ruff format check: passed.
 - ty check: passed.
-- pytest: 11 tests passed.
+- pytest: 16 tests passed.
 - pre-commit: all four hooks passed.
 - Streamlit headless startup: passed at `http://localhost:8765`.
 

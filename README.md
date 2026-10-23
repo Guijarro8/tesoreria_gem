@@ -10,6 +10,8 @@ las hojas de cálculo de tesorería del GEM.
 - Cruza las transferencias con un directorio privado de socios y alias.
 - Calcula las cuotas pagadas por cada socio, consolidando nombres alternativos.
 - Excluye socios inactivos, antiguos y pagos únicos sospechosos.
+- Genera un informe financiero dinámico con resumen, evolución mensual y los
+  diez gastos principales.
 - Sustituye las cuatro primeras hojas de una hoja de cálculo de Google Sheets.
 - Muestra el resultado en una interfaz web desplegada con Streamlit.
 
@@ -82,6 +84,23 @@ La fecha de referencia es la última transacción del extracto cargado. Un pago
 transferencias sin identificar, los alias ambiguos o pertenecientes probablemente
 a otro socio y los socios excluidos.
 
+## Informe financiero
+
+La primera actualización crea una hoja `Informe` en la hoja de cálculo de salida.
+Sus fórmulas leen directamente de `General` y se recalculan automáticamente cuando
+se actualizan los movimientos.
+
+Para explorar otro periodo:
+
+1. Cambia las fechas de las celdas `B4` (`Desde`) y `B5` (`Hasta`) directamente
+   en Google Sheets.
+2. El resumen, la evolución mensual y los diez gastos principales se actualizan
+   sin ejecutar Streamlit.
+
+El rango se aplica por meses completos. La tabla mensual admite hasta 120 meses
+desde la fecha `Desde`. Los importes de la sección de principales gastos se
+muestran como negativos para distinguirlos de los ingresos.
+
 ## Ejecución
 
 ```bash
@@ -118,4 +137,5 @@ drag_drop/constants.py   Cuotas y nombres de columnas
 drag_drop/members.py     Lectura y validación del directorio privado
 drag_drop/utils.py       Procesamiento de Excel y publicación en Google Sheets
 tests/                   Pruebas unitarias de las transformaciones
+drag_drop/finance_report.py  Generación de la hoja Informe basada en fórmulas
 ```

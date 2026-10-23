@@ -4,7 +4,7 @@ from typing import Any, cast
 import gspread
 import streamlit as st
 
-from drag_drop import members, utils
+from drag_drop import finance_report, members, utils
 
 
 def _read_secret(name: str) -> str:
@@ -102,6 +102,10 @@ def main() -> None:
             tesoreria_gem_key = _read_secret("tesoreria_gem_key")
             spreadsheet = client.open_by_key(tesoreria_gem_key)
             utils.upload_dataframes(processed.dataframes, spreadsheet)
+            finance_report.ensure_finance_report_sheet(
+                spreadsheet,
+                processed.dataframes["general"],
+            )
         except (KeyError, ValueError, gspread.GSpreadException):
             st.error("No se pudo actualizar la hoja de cálculo.")
             return
