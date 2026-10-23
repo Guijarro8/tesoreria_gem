@@ -7,6 +7,7 @@ MEMBER_DIRECTORY_TAB = "Socios"
 MEMBER_SETTINGS_TAB = "Ajustes"
 GENERAL_MOVEMENTS_TAB = "General"
 FINANCE_REPORT_TAB = "Informe"
+PROJECT_EXCLUSIONS_TAB = "Marshill (Sudáfrica)"
 
 DEFAULT_INACTIVE_AFTER_MONTHS = 12
 DEFAULT_SINGLE_PAYMENT_GRACE_MONTHS = 3
@@ -20,6 +21,7 @@ EXPENSE_ELECTRICITY = "Electricidad"
 EXPENSE_BANK_FEES = "Comisiones bancarias"
 EXPENSE_INSURANCE = "Seguros"
 EXPENSE_OTHER = "Otros"
+MOVEMENT_ID_COLUMN = "id_movimiento"
 
 OUTPUT_WORKSHEET_TABS = {
     "cuotas": "Cuotas",
@@ -35,6 +37,8 @@ COLUMNS_RENAME: dict[str, dict[str, str]] = {
         "Concepto": "concepto",
         "Importe": "importe",
         "Saldo": "saldo",
+        "Referencia 1": "referencia_1",
+        "Referencia 2": "referencia_2",
     },
     "cuotas": {
         "miembro": "Nombre",

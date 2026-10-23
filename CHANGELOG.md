@@ -78,6 +78,17 @@ from the member directory.
 **Impact:** the report can be explored and recalculated directly in Google Sheets
 without running Streamlit after its initial creation.
 
+### Project exclusions
+
+- Added stable transaction IDs and preserved bank references in processed data.
+- Added a persistent `Marshill (Sudáfrica)` ledger that the application only
+  reads during normal processing.
+- Excluded project transactions before member matching, fee summaries, expense
+  categories, and all report formulas.
+
+**Impact:** project costs and reimbursements can be removed from every financial
+total while remaining available in their own ledger.
+
 ### Bug fixes
 
 - Fixed the call to `Worksheet.update()` for the fee worksheet. The range (`B1`)
@@ -109,7 +120,7 @@ from the repository documentation, without committing generated files.
 - Ruff lint: passed.
 - Ruff format check: passed.
 - ty check: passed.
-- pytest: 23 tests passed.
+- pytest: 27 tests passed.
 - pre-commit: all four hooks passed.
 - Streamlit headless startup: passed at `http://localhost:8765`.
 

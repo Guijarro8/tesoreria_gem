@@ -76,6 +76,13 @@ def test_prepare_movements_normalizes_columns_and_classifies_rows() -> None:
         constants.EXPENSE_OTHER,
         "",
     ]
+    assert movements[constants.MOVEMENT_ID_COLUMN].is_unique
+
+    repeated = utils.prepare_movements(raw_movements)
+    assert (
+        movements[constants.MOVEMENT_ID_COLUMN].tolist()
+        == repeated[constants.MOVEMENT_ID_COLUMN].tolist()
+    )
 
 
 def test_extract_cuotas_applies_membership_and_activity_rules() -> None:

@@ -4,7 +4,7 @@ from typing import Any, cast
 import gspread
 import streamlit as st
 
-from drag_drop import finance_report, members, utils
+from drag_drop import constants, exclusions, finance_report, members, utils
 
 
 def _read_secret(name: str) -> str:
@@ -64,6 +64,25 @@ def _show_report(report: utils.FeeReport) -> None:
         )
 
 
+def _show_exclusions(report: exclusions.ExclusionReport) -> None:
+    if report.configured_ids == 0:
+        return
+
+    st.metric(
+        "Movimientos excluidos · Marshill (Sudáfrica)",
+        report.matched_transactions,
+    )
+    st.caption(
+        f"Ingresos excluidos: {report.excluded_income:,.2f} € · "
+        f"Gastos excluidos: {report.excluded_expenses:,.2f} €"
+    )
+    if report.unmatched_ids:
+        st.warning(
+            f"{len(report.unmatched_ids)} identificadores de Marshill (Sudáfrica) "
+            "no aparecen en el extracto actual."
+        )
+
+
 def main() -> None:
     """Render the Streamlit application."""
     st.title("Drag & Drop Excel de Tesorería GEM")
@@ -77,7 +96,14 @@ def main() -> None:
 
     try:
         client, directory, directory_key = _load_member_directory()
-        processed = utils.process_file(uploaded_file, directory)
+        tesoreria_gem_key = _read_secret("tesoreria_gem_key")
+        spreadsheet = client.open_by_key(tesoreria_gem_key)
+        excluded_ids = exclusions.load_exclusion_ids(spreadsheet)
+        processed = utils.process_file(
+            uploaded_file,
+            directory,
+            excluded_ids,
+        )
     except (KeyError, ValueError, gspread.GSpreadException):
         st.error(
             "No se pudo leer el directorio de socios o el archivo de movimientos. "
@@ -89,7 +115,13 @@ def main() -> None:
         "Abrir directorio de socios",
         f"https://docs.google.com/spreadsheets/d/{directory_key}/edit",
     )
+    st.link_button(
+        "Abrir Marshill (Sudáfrica)",
+        f"https://docs.google.com/spreadsheets/d/{tesoreria_gem_key}/edit"
+        f"#gid={spreadsheet.worksheet(constants.PROJECT_EXCLUSIONS_TAB).id}",
+    )
     _show_report(processed.report)
+    _show_exclusions(processed.exclusions)
 
     if st.button(
         "Replace Existing File",
@@ -99,8 +131,6 @@ def main() -> None:
         ),
     ):
         try:
-            tesoreria_gem_key = _read_secret("tesoreria_gem_key")
-            spreadsheet = client.open_by_key(tesoreria_gem_key)
             utils.upload_dataframes(processed.dataframes, spreadsheet)
             finance_report.ensure_finance_report_sheet(
                 spreadsheet,

@@ -1,5 +1,7 @@
 """Transform bank-movement workbooks and publish the results to Google Sheets."""
 
+import hashlib
+from collections.abc import Set
 from dataclasses import dataclass
 from numbers import Real
 from typing import BinaryIO, Literal, cast
@@ -7,7 +9,7 @@ from typing import BinaryIO, Literal, cast
 import gspread
 import pandas as pd
 
-from . import constants, expenses, members
+from . import constants, exclusions, expenses, members
 
 type DataFramesToUpload = dict[str, pd.DataFrame]
 type MovementKind = Literal["cuota", "gasto", "varios"]
@@ -34,6 +36,7 @@ class ProcessedFile:
 
     dataframes: DataFramesToUpload
     report: FeeReport
+    exclusions: exclusions.ExclusionReport
 
 
 def extract_cuotas(
@@ -128,10 +131,44 @@ def _classify_movement(amount: object) -> MovementKind:
     return "varios"
 
 
+def _movement_ids(raw_movements: pd.DataFrame) -> list[str]:
+    source_columns = [
+        "F. Operativa",
+        "Concepto",
+        "F. Valor",
+        "Importe",
+        "Saldo",
+        "Referencia 1",
+        "Referencia 2",
+    ]
+    source_values = raw_movements.reindex(columns=source_columns).fillna("").astype(str)
+    fingerprints = source_values.agg("\x1f".join, axis=1)
+    occurrences = fingerprints.groupby(fingerprints).cumcount() + 1
+    return [
+        hashlib.sha256(f"{fingerprint}\x1f{occurrence}".encode()).hexdigest()[:24]
+        for fingerprint, occurrence in zip(fingerprints, occurrences, strict=True)
+    ]
+
+
 def prepare_movements(raw_movements: pd.DataFrame) -> pd.DataFrame:
     """Normalize raw worksheet data and classify each bank movement."""
-    df_movements = raw_movements.rename(columns=constants.COLUMNS_RENAME["raw"]).copy()
-    df_movements = df_movements[["fecha", "concepto", "importe", "saldo"]]
+    raw_movements = raw_movements.copy()
+    raw_movements[constants.MOVEMENT_ID_COLUMN] = _movement_ids(raw_movements)
+    df_movements = raw_movements.rename(columns=constants.COLUMNS_RENAME["raw"])
+    for reference_column in ("referencia_1", "referencia_2"):
+        if reference_column not in df_movements:
+            df_movements[reference_column] = ""
+    df_movements = df_movements[
+        [
+            "fecha",
+            "concepto",
+            "importe",
+            "saldo",
+            "referencia_1",
+            "referencia_2",
+            constants.MOVEMENT_ID_COLUMN,
+        ]
+    ]
     df_movements["fecha"] = pd.to_datetime(df_movements["fecha"], format="%d/%m/%Y")
     df_movements["mes_anio"] = df_movements["fecha"].dt.to_period("M").astype(str)
     df_movements["tipo"] = df_movements["importe"].map(_classify_movement)
@@ -161,14 +198,34 @@ def prepare_movements(raw_movements: pd.DataFrame) -> pd.DataFrame:
 def process_file(
     uploaded_file: BinaryIO,
     directory: members.MemberDirectory,
+    excluded_ids: Set[str] = frozenset(),
 ) -> ProcessedFile:
     """Read an uploaded workbook and return tables destined for Google Sheets."""
     raw_movements = pd.read_excel(uploaded_file, skiprows=8)
     df_movements = prepare_movements(raw_movements)
+    df_movements, exclusion_report = exclusions.apply_exclusions(
+        df_movements,
+        excluded_ids,
+    )
     matched_movements, matching_report = members.match_movements(
         df_movements,
         directory,
     )
+    matched_movements = matched_movements[
+        [
+            "fecha",
+            "concepto",
+            "importe",
+            "saldo",
+            "mes_anio",
+            "tipo",
+            constants.EXPENSE_CATEGORY_COLUMN,
+            "miembro",
+            "referencia_1",
+            "referencia_2",
+            constants.MOVEMENT_ID_COLUMN,
+        ]
+    ]
 
     # Calcular cuotas por socio en base al importe de la cuota
     df_cuotas, report = extract_cuotas(
@@ -184,7 +241,11 @@ def process_file(
         "gasto": matched_movements.loc[matched_movements["tipo"] == "gasto"],
         "varios": matched_movements.loc[matched_movements["tipo"] == "varios"],
     }
-    return ProcessedFile(dataframes=dataframes, report=report)
+    return ProcessedFile(
+        dataframes=dataframes,
+        report=report,
+        exclusions=exclusion_report,
+    )
 
 
 def upload_dataframes(

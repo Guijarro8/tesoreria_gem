@@ -15,6 +15,7 @@ las hojas de cálculo de tesorería del GEM.
 - Agrupa gastos en alquiler, electricidad, comisiones bancarias, seguros y otros.
 - Muestra el porcentaje de ingresos aportado por cuotas y otros ingresos.
 - Muestra el porcentaje que representa cada categoría sobre el gasto total.
+- Excluye de todos los cálculos los movimientos del proyecto Marshill.
 - Sustituye las cuatro primeras hojas de una hoja de cálculo de Google Sheets.
 - Muestra el resultado en una interfaz web desplegada con Streamlit.
 
@@ -97,7 +98,7 @@ Para explorar otro periodo:
 
 1. Cambia las fechas de las celdas `B4` (`Desde`) y `B5` (`Hasta`) directamente
    en Google Sheets.
-2. El resumen, la evolución mensual y los diez gastos principales se actualizan
+2. El resumen, la evolución mensual y los quince gastos principales se actualizan
    sin ejecutar Streamlit.
 
 El rango se aplica por meses completos. La tabla mensual admite hasta 120 meses
@@ -119,6 +120,25 @@ de Isabel II se distinguen antes de normalizar la puntuación: el alquiler por s
 concepto y el importe fijo de 372,23 €, y la electricidad por el concepto sin esa
 puntuación. Las comisiones bancarias se detectan por `comision` y los seguros por
 `seguros helvetia`; el resto se agrupa como `Otros`.
+
+## Proyecto Marshill (Sudáfrica)
+
+La hoja `Marshill (Sudáfrica)` es un registro persistente que la aplicación solo
+lee. No se borra al volver a procesar el extracto.
+
+Para excluir una operación:
+
+1. Procesa el extracto para que las filas aparezcan en `General`. Cada fila
+   incluye un `id_movimiento` estable y sus referencias bancarias.
+2. Copia la fila completa desde `General`.
+3. Pégala en `Marshill (Sudáfrica)`, respetando el mismo orden de columnas.
+4. Añade cualquier aclaración en la columna `notas`.
+
+La siguiente actualización eliminará esas operaciones antes del matching de
+socios, la clasificación de gastos, los cálculos de cuotas y las fórmulas de
+`Informe`. El resumen de procesamiento muestra cuántos movimientos se excluyeron,
+los importes de ingresos y gastos, y los identificadores que ya no aparecen en el
+extracto actual.
 
 ## Ejecución
 
@@ -158,4 +178,5 @@ drag_drop/utils.py       Procesamiento de Excel y publicación en Google Sheets
 tests/                   Pruebas unitarias de las transformaciones
 drag_drop/finance_report.py  Generación de la hoja Informe basada en fórmulas
 drag_drop/expenses.py     Clasificación de gastos para el informe
+drag_drop/exclusions.py   Exclusiones persistentes de proyectos
 ```
