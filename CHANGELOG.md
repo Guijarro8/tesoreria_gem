@@ -91,6 +91,11 @@ without running Streamlit after its initial creation.
 **Impact:** project costs and reimbursements can be removed from every financial
 total while remaining available in their own ledger.
 
+### Operations
+
+- Added `scripts/regenerate_production.py` to regenerate the configured
+  production workbook from the newest private bank export.
+
 ### Bug fixes
 
 - Fixed the call to `Worksheet.update()` for the fee worksheet. The range (`B1`)

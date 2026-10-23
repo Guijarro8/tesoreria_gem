@@ -146,6 +146,19 @@ extracto actual.
 uv run streamlit run main.py
 ```
 
+Para regenerar directamente la hoja de producción con el extracto más reciente
+guardado en `private/`:
+
+```bash
+uv run python -m scripts.regenerate_production
+```
+
+También se puede indicar un archivo concreto:
+
+```bash
+uv run python -m scripts.regenerate_production private/extracto.xls
+```
+
 ## Calidad del código
 
 El proyecto usa Ruff para linting y formato, ty para comprobación de tipos y pytest

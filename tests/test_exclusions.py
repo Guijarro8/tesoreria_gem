@@ -87,3 +87,19 @@ def test_exclusion_sheet_uses_marshill_name_and_transaction_id() -> None:
         [exclusions.EXCLUSION_SHEET_HEADERS],
         range_name="A1",
     )
+
+
+def test_loading_ids_supports_extra_user_columns() -> None:
+    spreadsheet_mock = Mock()
+    worksheet_mock = spreadsheet_mock.worksheet.return_value
+    worksheet_mock.get_all_values.return_value = [
+        ["fecha", "id_movimiento", "campaña", "notas"],
+        ["2025-01-01", "first-id", "Marshill", ""],
+        ["2025-02-01", "second-id", "Marshill", "paid"],
+    ]
+
+    result = exclusions.load_exclusion_ids(
+        cast(gspread.Spreadsheet, spreadsheet_mock),
+    )
+
+    assert result == frozenset({"first-id", "second-id"})

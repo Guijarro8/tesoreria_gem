@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from collections.abc import Set
 from dataclasses import dataclass
-from typing import Any, cast
+from typing import cast
 
 import gspread
 import pandas as pd
@@ -68,17 +68,19 @@ def ensure_exclusion_sheet(spreadsheet: gspread.Spreadsheet) -> gspread.Workshee
 def load_exclusion_ids(spreadsheet: gspread.Spreadsheet) -> frozenset[str]:
     """Read the user-maintained transaction IDs from the exclusion ledger."""
     worksheet = ensure_exclusion_sheet(spreadsheet)
-    records = cast(
-        list[dict[str, Any]],
-        worksheet.get_all_records(),
-    )
-    if records and constants.MOVEMENT_ID_COLUMN not in records[0]:
+    values = cast(list[list[str]], worksheet.get_all_values())
+    if not values:
+        return frozenset[str]()
+
+    headers = values[0]
+    if constants.MOVEMENT_ID_COLUMN not in headers:
         raise ValueError("The exclusion sheet is missing id_movimiento.")
+    id_index = headers.index(constants.MOVEMENT_ID_COLUMN)
 
     return frozenset(
-        str(record.get(constants.MOVEMENT_ID_COLUMN, "")).strip()
-        for record in records
-        if str(record.get(constants.MOVEMENT_ID_COLUMN, "")).strip()
+        row[id_index].strip()
+        for row in values[1:]
+        if len(row) > id_index and row[id_index].strip()
     )
 
 
