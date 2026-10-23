@@ -16,7 +16,7 @@ las hojas de cálculo de tesorería del GEM.
 - Muestra el porcentaje de ingresos aportado por cuotas y otros ingresos.
 - Muestra el porcentaje que representa cada categoría sobre el gasto total.
 - Excluye de todos los cálculos los movimientos del proyecto Marshill.
-- Sustituye las cuatro primeras hojas de una hoja de cálculo de Google Sheets.
+- Sustituye únicamente las hojas de salida `Cuotas` y `General`.
 - Muestra el resultado en una interfaz web desplegada con Streamlit.
 
 ## Requisitos
@@ -115,7 +115,7 @@ existentes a las nuevas columnas en lugar de reconstruir la hoja y perder colore
 bordes o negritas.
 
 La clasificación de gastos se calcula al procesar los movimientos y se guarda en
-la columna `categoria_gasto` de `General` y `Gastos`. Los dos conceptos de Canal
+la columna `categoria_gasto` de `General`. Los dos conceptos de Canal
 de Isabel II se distinguen antes de normalizar la puntuación: el alquiler por su
 concepto y el importe fijo de 372,23 €, y la electricidad por el concepto sin esa
 puntuación. Las comisiones bancarias se detectan por `comision` y los seguros por

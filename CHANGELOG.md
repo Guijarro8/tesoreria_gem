@@ -70,6 +70,8 @@ from the member directory.
   shifting the expense table to accommodate the new percentage columns.
 - Switched output updates from positional worksheet indexes to explicit tab
   names so inserting `Informe` cannot move data into the wrong sheets.
+- Removed the redundant `Gastos`, `Ingresos`, and `Tabla dinámica 2` sheets from
+  the output workflow; `General` remains the single movement source of truth.
 - Moved the top-15 ranking beside the visible summary blocks and enforce
   `Informe` as the second worksheet.
 - Made formulas locale-aware so Spanish Google Sheets accounts use semicolon
@@ -120,7 +122,7 @@ from the repository documentation, without committing generated files.
 - Ruff lint: passed.
 - Ruff format check: passed.
 - ty check: passed.
-- pytest: 27 tests passed.
+- pytest: 28 tests passed.
 - pre-commit: all four hooks passed.
 - Streamlit headless startup: passed at `http://localhost:8765`.
 

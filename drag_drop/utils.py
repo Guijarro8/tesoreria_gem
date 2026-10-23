@@ -238,8 +238,6 @@ def process_file(
     dataframes = {
         "cuotas": df_cuotas,
         "general": matched_movements,
-        "gasto": matched_movements.loc[matched_movements["tipo"] == "gasto"],
-        "varios": matched_movements.loc[matched_movements["tipo"] == "varios"],
     }
     return ProcessedFile(
         dataframes=dataframes,
@@ -252,7 +250,7 @@ def upload_dataframes(
     dataframes: DataFramesToUpload,
     spreadsheet: gspread.Spreadsheet,
 ) -> None:
-    """Replace the first four worksheets with the supplied DataFrames."""
+    """Replace the named app-owned worksheets with the supplied DataFrames."""
 
     for df_name, dataframe in dataframes.items():
         # Renombramos colunas con nombres bonitos

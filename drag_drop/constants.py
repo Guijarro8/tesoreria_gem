@@ -26,8 +26,6 @@ MOVEMENT_ID_COLUMN = "id_movimiento"
 OUTPUT_WORKSHEET_TABS = {
     "cuotas": "Cuotas",
     "general": "General",
-    "gasto": "Gastos",
-    "varios": "Tabla dinámica 2",
 }
 
 # Nombres bonitos para columnas, por nombre de DataFrame

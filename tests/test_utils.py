@@ -9,6 +9,13 @@ import pandas as pd
 from drag_drop import constants, members, utils
 
 
+def test_only_cuotas_and_general_are_app_owned_output_sheets() -> None:
+    assert constants.OUTPUT_WORKSHEET_TABS == {
+        "cuotas": "Cuotas",
+        "general": "General",
+    }
+
+
 def build_directory() -> members.MemberDirectory:
     member_rows: list[dict[str, object]] = [
         {"Nombre": "Synthetic Member A", "Estado": "activo", "Alias 1": "alias a"},
