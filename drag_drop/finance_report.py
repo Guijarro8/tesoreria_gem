@@ -22,15 +22,11 @@ CATEGORY_SECTION_ROW = 15
 CATEGORY_HEADER_ROW = 16
 CATEGORY_FIRST_ROW = 17
 
-TOP_EXPENSES_SECTION_ROW = CATEGORY_FIRST_ROW + len(EXPENSE_CATEGORIES) + 1
-TOP_EXPENSES_HEADER_ROW = TOP_EXPENSES_SECTION_ROW + 1
-TOP_EXPENSES_FIRST_ROW = TOP_EXPENSES_HEADER_ROW + 1
+TOP_EXPENSES_SECTION_ROW = 7
+TOP_EXPENSES_HEADER_ROW = 8
+TOP_EXPENSES_FIRST_ROW = 9
 
-OTHER_EXPENSES_SECTION_ROW = TOP_EXPENSES_FIRST_ROW + 11
-OTHER_EXPENSES_HEADER_ROW = OTHER_EXPENSES_SECTION_ROW + 1
-OTHER_EXPENSES_FIRST_ROW = OTHER_EXPENSES_HEADER_ROW + 1
-
-MONTH_TABLE_SECTION_ROW = OTHER_EXPENSES_FIRST_ROW + 21
+MONTH_TABLE_SECTION_ROW = 25
 MONTH_TABLE_HEADER_ROW = MONTH_TABLE_SECTION_ROW + 1
 MONTH_TABLE_START_ROW = MONTH_TABLE_HEADER_ROW + 1
 MONTH_TABLE_ROWS = 120
@@ -70,6 +66,18 @@ def build_report_values(
     category_columns = dict(
         zip(EXPENSE_CATEGORIES, ("G", "H", "I", "J", "K"), strict=True)
     )
+    query_text = (
+        "\"select A, B, C where F = 'gasto' "
+        "and E >= '\"&"
+        f"{month_start}&"
+        "\"' and E <= '\"&"
+        f"{month_end}&"
+        '"\' order by C asc limit 15"'
+    )
+    top_expenses_formula = (
+        f"=IFERROR(QUERY({general}!$A$2:$H{separator}{query_text}"
+        f'{separator}0){separator}"Sin gastos")'
+    )
 
     values: list[list[object]] = [
         ["Informe financiero GEM"],
@@ -89,11 +97,13 @@ def build_report_values(
             f"{separator}{end_date.day})",
         ],
         [],
-        ["Resumen del periodo"],
-        ["Indicador", "Importe"],
+        ["Resumen del periodo", "", "", "Top 15 gastos"],
+        ["Indicador", "Importe", "", "Fecha", "Concepto", "Importe (negativo)"],
         [
             "Cuotas de socios",
             f"=SUM(B{MONTH_TABLE_START_ROW}:B{MONTH_TABLE_END_ROW})",
+            "",
+            top_expenses_formula,
         ],
         [
             "Otros ingresos",
@@ -120,47 +130,9 @@ def build_report_values(
         for category in EXPENSE_CATEGORIES
     )
 
-    query_text = (
-        "\"select A, B, C where F = 'gasto' "
-        "and E >= '\"&"
-        f"{month_start}&"
-        "\"' and E <= '\"&"
-        f"{month_end}&"
-        '"\' order by C asc limit 10"'
-    )
-    other_query_text = (
-        "\"select A, B, C where F = 'gasto' and G = 'Otros' "
-        "and E >= '\"&"
-        f"{month_start}&"
-        "\"' and E <= '\"&"
-        f"{month_end}&"
-        '"\' order by C asc limit 20"'
-    )
     values.extend(
         [
-            [],
-            ["Top 10 gastos"],
-            ["Fecha", "Concepto", "Importe (negativo)"],
-            [
-                f"=IFERROR(QUERY({general}!$A$2:$H{separator}{query_text}"
-                f'{separator}0){separator}"Sin gastos")'
-            ],
-        ]
-    )
-    values.extend(
-        [[] for _ in range(10)]
-        + [
-            ["Top 20 gastos · Otros"],
-            ["Fecha", "Concepto", "Importe (negativo)"],
-            [
-                f"=IFERROR(QUERY({general}!$A$2:$H{separator}"
-                f'{other_query_text}{separator}0){separator}"Sin gastos")'
-            ],
-        ]
-    )
-    values.extend(
-        [
-            *[[] for _ in range(20)],
+            *[[] for _ in range(3)],
             ["Evolución mensual"],
             [
                 "Mes",
@@ -300,17 +272,10 @@ def _format_report(worksheet: gspread.Worksheet) -> None:
     }
     worksheet.format("A1:K1", title_format)
     worksheet.format("A7:B8", section_format)
+    worksheet.format("D7:F8", section_format)
     worksheet.format("A15:B16", section_format)
     worksheet.format(
         f"A{MONTH_TABLE_SECTION_ROW}:K{MONTH_TABLE_HEADER_ROW}",
-        section_format,
-    )
-    worksheet.format(
-        f"A{TOP_EXPENSES_SECTION_ROW}:C{TOP_EXPENSES_HEADER_ROW}",
-        section_format,
-    )
-    worksheet.format(
-        f"A{OTHER_EXPENSES_SECTION_ROW}:C{OTHER_EXPENSES_HEADER_ROW}",
         section_format,
     )
     worksheet.format("B4:B5", {"numberFormat": {"type": "DATE"}})
@@ -324,11 +289,7 @@ def _format_report(worksheet: gspread.Worksheet) -> None:
         amount_format,
     )
     worksheet.format(
-        f"C{TOP_EXPENSES_FIRST_ROW}:C{TOP_EXPENSES_FIRST_ROW + 9}",
-        amount_format,
-    )
-    worksheet.format(
-        f"C{OTHER_EXPENSES_FIRST_ROW}:C{OTHER_EXPENSES_FIRST_ROW + 19}",
+        f"F{TOP_EXPENSES_FIRST_ROW}:F{TOP_EXPENSES_FIRST_ROW + 14}",
         amount_format,
     )
     worksheet.freeze(rows=5)

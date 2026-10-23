@@ -30,14 +30,14 @@ def test_report_layout_uses_dynamic_date_and_month_formulas() -> None:
 
     assert values[3] == ["Desde", "=DATE(2025,11,1)"]
     assert values[4] == ["Hasta", "=DATE(2026,10,15)"]
-    assert values[8][1] == "=SUM(B61:B180)"
+    assert values[6][3] == "Top 15 gastos"
+    assert values[7][3:] == ["Fecha", "Concepto", "Importe (negativo)"]
+    assert values[8][1] == "=SUM(B27:B146)"
+    assert "limit 15" in str(values[8][3])
     assert values[16][0] == "Alquiler"
-    assert values[59][0] == "Mes"
-    assert str(values[60][0]).startswith("=TEXT(DATE(YEAR($B$4)")
+    assert values[25][0] == "Mes"
+    assert str(values[26][0]).startswith("=TEXT(DATE(YEAR($B$4)")
     assert len(values) == finance_report.MONTH_TABLE_END_ROW
-    assert "limit 10" in str(values[finance_report.TOP_EXPENSES_FIRST_ROW - 1][0])
-    assert "limit 20" in str(values[finance_report.OTHER_EXPENSES_FIRST_ROW - 1][0])
-    assert "G = 'Otros'" in str(values[finance_report.OTHER_EXPENSES_FIRST_ROW - 1][0])
 
 
 def test_spanish_locale_uses_semicolon_formula_separators() -> None:
@@ -51,8 +51,8 @@ def test_spanish_locale_uses_semicolon_formula_separators() -> None:
     )
 
     assert values[3][1] == "=DATE(2025;11;1)"
-    assert "SUMIFS(" in str(values[60][1])
-    assert ';"cuota";' in str(values[60][1])
+    assert "SUMIFS(" in str(values[26][1])
+    assert ';"cuota";' in str(values[26][1])
 
 
 def test_report_rejects_reversed_date_ranges() -> None:

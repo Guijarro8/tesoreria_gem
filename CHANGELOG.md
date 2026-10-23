@@ -60,14 +60,14 @@ from the member directory.
   date controls.
 - Added dynamic totals for member fees, other income, total income, costs, and
   net balance.
-- Added a monthly evolution table and a formula-driven top-ten expense query.
+- Added a monthly evolution table and a formula-driven top-15 expense query.
 - Added expense categories stored in `General` and `Gastos`, including distinct
   rent and electricity classification for the two Canal de Isabel II concepts.
-- Added category totals and a formula-driven top-twenty list for `Otros`.
+- Added category totals and kept a single overall expense ranking.
 - Switched output updates from positional worksheet indexes to explicit tab
   names so inserting `Informe` cannot move data into the wrong sheets.
-- Moved both expense rankings above the monthly table and enforce `Informe` as
-  the second worksheet.
+- Moved the top-15 ranking beside the visible summary blocks and enforce
+  `Informe` as the second worksheet.
 - Made formulas locale-aware so Spanish Google Sheets accounts use semicolon
   argument separators.
 

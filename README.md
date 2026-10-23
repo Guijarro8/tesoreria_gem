@@ -11,9 +11,8 @@ las hojas de cálculo de tesorería del GEM.
 - Calcula las cuotas pagadas por cada socio, consolidando nombres alternativos.
 - Excluye socios inactivos, antiguos y pagos únicos sospechosos.
 - Genera un informe financiero dinámico con resumen, evolución mensual y los
-  diez gastos principales.
+  quince gastos principales.
 - Agrupa gastos en alquiler, electricidad, comisiones bancarias, seguros y otros.
-- Incluye un desglose de los veinte gastos mayores de la categoría `Otros`.
 - Sustituye las cuatro primeras hojas de una hoja de cálculo de Google Sheets.
 - Muestra el resultado en una interfaz web desplegada con Streamlit.
 
@@ -103,8 +102,9 @@ El rango se aplica por meses completos. La tabla mensual admite hasta 120 meses
 desde la fecha `Desde`. Los importes de la sección de principales gastos se
 muestran como negativos para distinguirlos de los ingresos.
 
-Los rankings de gastos aparecen antes del detalle mensual para que sean visibles
-sin recorrer toda la tabla de evolución.
+El ranking de los quince gastos principales aparece a la derecha del resumen y
+del desglose por categorías, antes del detalle mensual, para que todo sea visible
+sin recorrer la tabla de evolución.
 
 La clasificación de gastos se calcula al procesar los movimientos y se guarda en
 la columna `categoria_gasto` de `General` y `Gastos`. Los dos conceptos de Canal
