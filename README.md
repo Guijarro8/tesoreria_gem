@@ -13,6 +13,8 @@ las hojas de cálculo de tesorería del GEM.
 - Genera un informe financiero dinámico con resumen, evolución mensual y los
   quince gastos principales.
 - Agrupa gastos en alquiler, electricidad, comisiones bancarias, seguros y otros.
+- Muestra el porcentaje de ingresos aportado por cuotas y otros ingresos.
+- Muestra el porcentaje que representa cada categoría sobre el gasto total.
 - Sustituye las cuatro primeras hojas de una hoja de cálculo de Google Sheets.
 - Muestra el resultado en una interfaz web desplegada con Streamlit.
 
@@ -105,6 +107,11 @@ muestran como negativos para distinguirlos de los ingresos.
 El ranking de los quince gastos principales aparece a la derecha del resumen y
 del desglose por categorías, antes del detalle mensual, para que todo sea visible
 sin recorrer la tabla de evolución.
+
+Las columnas de porcentaje están junto a los importes correspondientes. Si la
+hoja se actualiza desde una versión anterior, la migración copia los formatos
+existentes a las nuevas columnas en lugar de reconstruir la hoja y perder colores,
+bordes o negritas.
 
 La clasificación de gastos se calcula al procesar los movimientos y se guarda en
 la columna `categoria_gasto` de `General` y `Gastos`. Los dos conceptos de Canal

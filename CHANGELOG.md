@@ -64,6 +64,10 @@ from the member directory.
 - Added expense categories stored in `General` and `Gastos`, including distinct
   rent and electricity classification for the two Canal de Isabel II concepts.
 - Added category totals and kept a single overall expense ranking.
+- Added income-share percentages for fees versus other income and expense-share
+  percentages for every expense category.
+- Added a non-destructive layout migration that copies existing formatting when
+  shifting the expense table to accommodate the new percentage columns.
 - Switched output updates from positional worksheet indexes to explicit tab
   names so inserting `Informe` cannot move data into the wrong sheets.
 - Moved the top-15 ranking beside the visible summary blocks and enforce

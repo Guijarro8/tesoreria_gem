@@ -51,6 +51,24 @@ def default_report_dates(movements: pd.DataFrame) -> tuple[date, date]:
     return start_period.start_time.date(), latest.date()
 
 
+def _top_expenses_formula(separator: str) -> str:
+    general = f"'{constants.GENERAL_MOVEMENTS_TAB}'"
+    month_start = f'TEXT($B$4{separator}"YYYY-MM")'
+    month_end = f'TEXT($B$5{separator}"YYYY-MM")'
+    query_text = (
+        "\"select A, B, C where F = 'gasto' "
+        "and E >= '\"&"
+        f"{month_start}&"
+        "\"' and E <= '\"&"
+        f"{month_end}&"
+        '"\' order by C asc limit 15"'
+    )
+    return (
+        f"=IFERROR(QUERY({general}!$A$2:$H{separator}{query_text}"
+        f'{separator}0){separator}"Sin gastos")'
+    )
+
+
 def build_report_values(
     start_date: date,
     end_date: date,
@@ -61,23 +79,11 @@ def build_report_values(
         raise ValueError("Report start date must not be after end date.")
 
     general = f"'{constants.GENERAL_MOVEMENTS_TAB}'"
-    month_start = f'TEXT($B$4{separator}"YYYY-MM")'
     month_end = f'TEXT($B$5{separator}"YYYY-MM")'
     category_columns = dict(
         zip(EXPENSE_CATEGORIES, ("G", "H", "I", "J", "K"), strict=True)
     )
-    query_text = (
-        "\"select A, B, C where F = 'gasto' "
-        "and E >= '\"&"
-        f"{month_start}&"
-        "\"' and E <= '\"&"
-        f"{month_end}&"
-        '"\' order by C asc limit 15"'
-    )
-    top_expenses_formula = (
-        f"=IFERROR(QUERY({general}!$A$2:$H{separator}{query_text}"
-        f'{separator}0){separator}"Sin gastos")'
-    )
+    top_expenses_formula = _top_expenses_formula(separator)
 
     values: list[list[object]] = [
         ["Informe financiero GEM"],
@@ -97,27 +103,38 @@ def build_report_values(
             f"{separator}{end_date.day})",
         ],
         [],
-        ["Resumen del periodo", "", "", "Top 15 gastos"],
-        ["Indicador", "Importe", "", "Fecha", "Concepto", "Importe (negativo)"],
+        ["Resumen del periodo", "", "", "", "Top 15 gastos"],
+        [
+            "Indicador",
+            "Importe",
+            "Porcentaje",
+            "",
+            "Fecha",
+            "Concepto",
+            "Importe (negativo)",
+        ],
         [
             "Cuotas de socios",
             f"=SUM(B{MONTH_TABLE_START_ROW}:B{MONTH_TABLE_END_ROW})",
+            f"=IFERROR(B9/B11{separator}0)",
             "",
             top_expenses_formula,
         ],
         [
             "Otros ingresos",
             f"=SUM(C{MONTH_TABLE_START_ROW}:C{MONTH_TABLE_END_ROW})",
+            f"=IFERROR(B10/B11{separator}0)",
         ],
-        ["Ingresos totales", "=B9+B10"],
+        ["Ingresos totales", "=B9+B10", f"=IFERROR(B11/B11{separator}0)"],
         [
             "Gastos",
             f"=SUM(E{MONTH_TABLE_START_ROW}:E{MONTH_TABLE_END_ROW})",
+            f"=IFERROR(B12/B11{separator}0)",
         ],
-        ["Balance neto", "=B11-B12"],
+        ["Balance neto", "=B11-B12", f"=IFERROR(B13/B11{separator}0)"],
         [],
-        ["Gastos por tipo"],
-        ["Categoría", "Importe"],
+        ["Gastos por tipo", "", ""],
+        ["Categoría", "Importe", "Porcentaje"],
     ]
     values.extend(
         [
@@ -126,8 +143,9 @@ def build_report_values(
                 f"=SUM({category_columns[category]}{MONTH_TABLE_START_ROW}:"
                 f"{category_columns[category]}{MONTH_TABLE_END_ROW})"
             ),
+            f"=IFERROR(B{CATEGORY_FIRST_ROW + index}/$B$12{separator}0)",
         ]
-        for category in EXPENSE_CATEGORIES
+        for index, category in enumerate(EXPENSE_CATEGORIES)
     )
 
     values.extend(
@@ -226,20 +244,19 @@ def ensure_finance_report_sheet(
         worksheet.update_index(target_index)
         if not replace:
             _ensure_report_dimensions(worksheet)
+            _upgrade_existing_report(spreadsheet, worksheet)
             return worksheet
 
     if start_date is None or end_date is None:
         start_date, end_date = default_report_dates(movements)
-    metadata = cast(dict[str, Any], spreadsheet.fetch_sheet_metadata())
-    properties = cast(dict[str, Any], metadata.get("properties", {}))
-    locale = str(properties.get("locale", ""))
+    separator = _spreadsheet_formula_separator(spreadsheet)
     _ensure_report_dimensions(worksheet)
     worksheet.clear()
     worksheet.update(
         build_report_values(
             start_date,
             end_date,
-            separator=formula_separator(locale),
+            separator=separator,
         ),
         range_name="A1",
         raw=False,
@@ -253,6 +270,106 @@ def _ensure_report_dimensions(worksheet: gspread.Worksheet) -> None:
         worksheet.add_rows(200 - worksheet.row_count)
     if worksheet.col_count < 11:
         worksheet.add_cols(11 - worksheet.col_count)
+
+
+def _spreadsheet_formula_separator(spreadsheet: gspread.Spreadsheet) -> str:
+    metadata = cast(dict[str, Any], spreadsheet.fetch_sheet_metadata())
+    properties = cast(dict[str, Any], metadata.get("properties", {}))
+    return formula_separator(str(properties.get("locale", "")))
+
+
+def _copy_format(
+    worksheet: gspread.Worksheet,
+    source_range: str,
+    destination_range: str,
+) -> None:
+    source = gspread.utils.a1_range_to_grid_range(source_range, worksheet.id)
+    destination = gspread.utils.a1_range_to_grid_range(
+        destination_range,
+        worksheet.id,
+    )
+    worksheet.spreadsheet.batch_update(
+        {
+            "requests": [
+                {
+                    "copyPaste": {
+                        "source": source,
+                        "destination": destination,
+                        "pasteType": "PASTE_FORMAT",
+                        "pasteOrientation": "NORMAL",
+                    }
+                }
+            ]
+        }
+    )
+
+
+def _clear_format(worksheet: gspread.Worksheet, cell_range: str) -> None:
+    grid_range = gspread.utils.a1_range_to_grid_range(cell_range, worksheet.id)
+    worksheet.spreadsheet.batch_update(
+        {
+            "requests": [
+                {
+                    "repeatCell": {
+                        "range": grid_range,
+                        "fields": "userEnteredFormat",
+                    }
+                }
+            ]
+        }
+    )
+
+
+def _upgrade_existing_report(
+    spreadsheet: gspread.Spreadsheet,
+    worksheet: gspread.Worksheet,
+) -> None:
+    """Add percentage columns while preserving the user's existing formatting."""
+    if worksheet.acell("C8").value == "Porcentaje":
+        return
+    if worksheet.acell("D7").value != "Top 15 gastos":
+        return
+
+    _copy_format(worksheet, "D7:F23", "E7:G23")
+    _copy_format(worksheet, "B7:B13", "C7:C13")
+    _copy_format(worksheet, "B15:B21", "C15:C21")
+    worksheet.batch_clear(["D7:F23"])
+    _clear_format(worksheet, "D7:D23")
+
+    separator = _spreadsheet_formula_separator(spreadsheet)
+    summary_percentages = [
+        [f"=IFERROR(B9/B11{separator}0)"],
+        [f"=IFERROR(B10/B11{separator}0)"],
+        [f"=IFERROR(B11/B11{separator}0)"],
+        [f"=IFERROR(B12/B11{separator}0)"],
+        [f"=IFERROR(B13/B11{separator}0)"],
+    ]
+    category_percentages = [
+        [f"=IFERROR(B{CATEGORY_FIRST_ROW + index}/$B$12{separator}0)"]
+        for index in range(len(EXPENSE_CATEGORIES))
+    ]
+
+    worksheet.update(
+        [
+            ["Top 15 gastos"],
+            ["Fecha", "Concepto", "Importe (negativo)"],
+            [_top_expenses_formula(separator)],
+        ],
+        range_name="E7",
+        raw=False,
+    )
+    worksheet.update([["Porcentaje"]], range_name="C8")
+    worksheet.update(summary_percentages, range_name="C9", raw=False)
+    worksheet.update([["Porcentaje"]], range_name="C16")
+    worksheet.update(category_percentages, range_name="C17", raw=False)
+    worksheet.format(
+        "C9:C13",
+        {"numberFormat": {"type": "PERCENT", "pattern": "0.0%"}},
+    )
+    worksheet.format(
+        "C17:C21",
+        {"numberFormat": {"type": "PERCENT", "pattern": "0.0%"}},
+    )
 
 
 def _format_report(worksheet: gspread.Worksheet) -> None:
@@ -270,26 +387,34 @@ def _format_report(worksheet: gspread.Worksheet) -> None:
     amount_format: dict[str, Any] = {
         "numberFormat": {"type": "CURRENCY", "pattern": '#,##0.00 "€"'}
     }
+    percent_format: dict[str, Any] = {
+        "numberFormat": {"type": "PERCENT", "pattern": "0.0%"}
+    }
     worksheet.format("A1:K1", title_format)
-    worksheet.format("A7:B8", section_format)
-    worksheet.format("D7:F8", section_format)
-    worksheet.format("A15:B16", section_format)
+    worksheet.format("A7:C8", section_format)
+    worksheet.format("E7:G8", section_format)
+    worksheet.format("A15:C16", section_format)
     worksheet.format(
         f"A{MONTH_TABLE_SECTION_ROW}:K{MONTH_TABLE_HEADER_ROW}",
         section_format,
     )
     worksheet.format("B4:B5", {"numberFormat": {"type": "DATE"}})
     worksheet.format("B9:B13", amount_format)
+    worksheet.format("C9:C13", percent_format)
     worksheet.format(
         f"B{CATEGORY_FIRST_ROW}:B{CATEGORY_FIRST_ROW + len(EXPENSE_CATEGORIES) - 1}",
         amount_format,
+    )
+    worksheet.format(
+        f"C{CATEGORY_FIRST_ROW}:C{CATEGORY_FIRST_ROW + len(EXPENSE_CATEGORIES) - 1}",
+        percent_format,
     )
     worksheet.format(
         f"B{MONTH_TABLE_START_ROW}:K{MONTH_TABLE_END_ROW}",
         amount_format,
     )
     worksheet.format(
-        f"F{TOP_EXPENSES_FIRST_ROW}:F{TOP_EXPENSES_FIRST_ROW + 14}",
+        f"G{TOP_EXPENSES_FIRST_ROW}:G{TOP_EXPENSES_FIRST_ROW + 14}",
         amount_format,
     )
     worksheet.freeze(rows=5)
