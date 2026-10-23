@@ -259,9 +259,11 @@ def upload_dataframes(
 
         # llenar nulos con vacio
         dataframe = dataframe.fillna("-")
-        # borrar formato fecha
+        # Enviar fechas ISO para que Google Sheets las trate como fechas reales.
         if df_name != "cuotas":
-            dataframe["fecha"] = dataframe["fecha"].astype(str)
+            dataframe["fecha"] = pd.to_datetime(dataframe["fecha"]).dt.strftime(
+                "%Y-%m-%d"
+            )
 
         # Formatear y subir a google sheets
         formatted_data = cast(
@@ -271,4 +273,4 @@ def upload_dataframes(
         worksheet = spreadsheet.worksheet(constants.OUTPUT_WORKSHEET_TABS[df_name])
 
         worksheet.clear()
-        worksheet.update(formatted_data)
+        worksheet.update(formatted_data, raw=False)

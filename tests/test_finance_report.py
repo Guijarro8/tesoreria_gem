@@ -34,11 +34,15 @@ def test_report_layout_uses_dynamic_date_and_month_formulas() -> None:
     assert values[7][4:] == ["Fecha", "Concepto", "Importe (negativo)"]
     assert values[8][1] == "=SUM(B27:B146)"
     assert values[8][2] == "=IFERROR(B9/B11,0)"
-    assert "limit 15" in str(values[8][4])
+    assert "SORTN(FILTER(" in str(values[8][4])
+    assert "$B$4" in str(values[8][4])
+    assert "$B$5" in str(values[8][4])
     assert values[16][0] == "Alquiler"
     assert values[16][2] == "=IFERROR(B17/$B$12,0)"
     assert values[25][0] == "Mes"
     assert str(values[26][0]).startswith("=TEXT(DATE(YEAR($B$4)")
+    assert "MAX($B$4" in str(values[26][1])
+    assert "MIN($B$5" in str(values[26][1])
     assert len(values) == finance_report.MONTH_TABLE_END_ROW
 
 
@@ -71,6 +75,11 @@ def test_existing_report_is_not_recreated() -> None:
     existing.row_count = 200
     existing.col_count = 11
     spreadsheet_mock.worksheets.return_value = [existing]
+    spreadsheet_mock.fetch_sheet_metadata.return_value = {
+        "properties": {"locale": "en_US"}
+    }
+    existing.get.return_value = [['=IF($A27="";"";MAX($B$4);MIN($B$5))']]
+    existing.acell.return_value.value = "Porcentaje"
 
     result = finance_report.ensure_finance_report_sheet(
         cast(gspread.Spreadsheet, spreadsheet_mock),

@@ -66,6 +66,8 @@ from the member directory.
 - Added category totals and kept a single overall expense ranking.
 - Added income-share percentages for fees versus other income and expense-share
   percentages for every expense category.
+- Changed report filtering from month-only comparisons to exact `Desde`/`Hasta`
+  dates, including partial first and last months.
 - Added a non-destructive layout migration that copies existing formatting when
   shifting the expense table to accommodate the new percentage columns.
 - Switched output updates from positional worksheet indexes to explicit tab
@@ -127,7 +129,7 @@ from the repository documentation, without committing generated files.
 - Ruff lint: passed.
 - Ruff format check: passed.
 - ty check: passed.
-- pytest: 28 tests passed.
+- pytest: 29 tests passed.
 - pre-commit: all four hooks passed.
 - Streamlit headless startup: passed at `http://localhost:8765`.
 

@@ -53,19 +53,15 @@ def default_report_dates(movements: pd.DataFrame) -> tuple[date, date]:
 
 def _top_expenses_formula(separator: str) -> str:
     general = f"'{constants.GENERAL_MOVEMENTS_TAB}'"
-    month_start = f'TEXT($B$4{separator}"YYYY-MM")'
-    month_end = f'TEXT($B$5{separator}"YYYY-MM")'
-    query_text = (
-        "\"select A, B, C where F = 'gasto' "
-        "and E >= '\"&"
-        f"{month_start}&"
-        "\"' and E <= '\"&"
-        f"{month_end}&"
-        '"\' order by C asc limit 15"'
+    filter_formula = (
+        f"FILTER({general}!$A$2:$C{separator}"
+        f'{general}!$F$2:$F{separator}"gasto"{separator}'
+        f'{general}!$A$2:$A{separator}">="&$B$4{separator}'
+        f'{general}!$A$2:$A{separator}"<="&$B$5)'
     )
     return (
-        f"=IFERROR(QUERY({general}!$A$2:$H{separator}{query_text}"
-        f'{separator}0){separator}"Sin gastos")'
+        f"=IFERROR(SORTN({filter_formula}{separator}15{separator}"
+        f'2{separator}3{separator}TRUE){separator}"Sin gastos")'
     )
 
 
@@ -88,7 +84,7 @@ def build_report_values(
     values: list[list[object]] = [
         ["Informe financiero GEM"],
         [
-            "El rango se aplica por meses completos. "
+            "El rango usa fechas exactas. "
             "Edita Desde y Hasta para actualizar el informe."
         ],
         [],
@@ -167,6 +163,16 @@ def build_report_values(
     for offset in range(MONTH_TABLE_ROWS):
         row_number = MONTH_TABLE_START_ROW + offset
         previous_row = row_number - 1
+        month_start = (
+            f"DATE(VALUE(LEFT($A{row_number}{separator}4))"
+            f"{separator}VALUE(RIGHT($A{row_number}{separator}2))"
+            f"{separator}1)"
+        )
+        date_filter = (
+            f'{general}!$A$2:$A{separator}">="&MAX($B$4{separator}{month_start})'
+            f'{separator}{general}!$A$2:$A{separator}"<="&'
+            f"MIN($B$5{separator}EOMONTH({month_start}{separator}0))"
+        )
         if offset == 0:
             month_formula = (
                 f"=TEXT(DATE(YEAR($B$4){separator}MONTH($B$4)"
@@ -188,14 +194,14 @@ def build_report_values(
                     f'=IF($A{row_number}=""{separator}""{separator}'
                     f"SUMIFS({general}!$C$2:$C{separator}"
                     f'{general}!$F$2:$F{separator}"cuota"{separator}'
-                    f"{general}!$E$2:$E{separator}$A{row_number}))"
+                    f"{date_filter}))"
                 ),
                 (
                     f'=IF($A{row_number}=""{separator}""{separator}'
                     f"SUMIFS({general}!$C$2:$C{separator}"
                     f'{general}!$F$2:$F{separator}"varios"{separator}'
                     f'{general}!$C$2:$C{separator}">0"{separator}'
-                    f"{general}!$E$2:$E{separator}$A{row_number}))"
+                    f"{date_filter}))"
                 ),
                 f'=IF($A{row_number}=""{separator}""{separator}'
                 f"B{row_number}+C{row_number})",
@@ -209,8 +215,7 @@ def build_report_values(
                         f"-SUMIFS({general}!$C$2:$C{separator}"
                         f'{general}!$F$2:$F{separator}"gasto"{separator}'
                         f'{general}!$G$2:$G{separator}"{category}"'
-                        f"{separator}{general}!$E$2:$E{separator}"
-                        f"$A{row_number}))"
+                        f"{separator}{date_filter}))"
                     )
                     for category in EXPENSE_CATEGORIES
                 ],
@@ -324,44 +329,41 @@ def _upgrade_existing_report(
     spreadsheet: gspread.Spreadsheet,
     worksheet: gspread.Worksheet,
 ) -> None:
-    """Add percentage columns while preserving the user's existing formatting."""
-    if worksheet.acell("C8").value == "Porcentaje":
-        return
-    if worksheet.acell("D7").value != "Top 15 gastos":
-        return
-
-    _copy_format(worksheet, "D7:F23", "E7:G23")
-    _copy_format(worksheet, "B7:B13", "C7:C13")
-    _copy_format(worksheet, "B15:B21", "C15:C21")
-    worksheet.batch_clear(["D7:F23"])
-    _clear_format(worksheet, "D7:D23")
-
+    """Upgrade report formulas and layout without resetting user formatting."""
     separator = _spreadsheet_formula_separator(spreadsheet)
-    summary_percentages = [
-        [f"=IFERROR(B9/B11{separator}0)"],
-        [f"=IFERROR(B10/B11{separator}0)"],
-        [f"=IFERROR(B11/B11{separator}0)"],
-        [f"=IFERROR(B12/B11{separator}0)"],
-        [f"=IFERROR(B13/B11{separator}0)"],
-    ]
-    category_percentages = [
-        [f"=IFERROR(B{CATEGORY_FIRST_ROW + index}/$B$12{separator}0)"]
-        for index in range(len(EXPENSE_CATEGORIES))
-    ]
+    current_formula = worksheet.get(
+        "B27",
+        value_render_option=cast(gspread.utils.ValueRenderOption, "FORMULA"),
+    )[0][0]
+    has_exact_dates = isinstance(current_formula, str) and "MAX($B$4" in current_formula
+    has_percentages = worksheet.acell("C8").value == "Porcentaje"
+    if has_exact_dates and has_percentages:
+        return
 
+    is_legacy_layout = worksheet.acell("D7").value == "Top 15 gastos"
+    if not has_percentages:
+        if not is_legacy_layout:
+            return
+        _copy_format(worksheet, "D7:F23", "E7:G23")
+        _copy_format(worksheet, "B7:B13", "C7:C13")
+        _copy_format(worksheet, "B15:B21", "C15:C21")
+        worksheet.batch_clear(["D7:F23"])
+        _clear_format(worksheet, "D7:D23")
+
+    date_formulas = worksheet.get(
+        "B4:B5",
+        value_render_option=cast(gspread.utils.ValueRenderOption, "FORMULA"),
+    )
     worksheet.update(
-        [
-            ["Top 15 gastos"],
-            ["Fecha", "Concepto", "Importe (negativo)"],
-            [_top_expenses_formula(separator)],
-        ],
-        range_name="E7",
+        build_report_values(
+            date(2000, 1, 1),
+            date(2000, 1, 31),
+            separator=separator,
+        ),
+        range_name="A1",
         raw=False,
     )
-    worksheet.update([["Porcentaje"]], range_name="C8")
-    worksheet.update(summary_percentages, range_name="C9", raw=False)
-    worksheet.update([["Porcentaje"]], range_name="C16")
-    worksheet.update(category_percentages, range_name="C17", raw=False)
+    worksheet.update(date_formulas, range_name="B4", raw=False)
     worksheet.format(
         "C9:C13",
         {"numberFormat": {"type": "PERCENT", "pattern": "0.0%"}},

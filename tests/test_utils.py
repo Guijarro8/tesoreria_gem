@@ -236,4 +236,7 @@ def test_upload_dataframes_clears_and_writes_from_column_a() -> None:
 
     spreadsheet_mock.worksheet.assert_called_once_with("Cuotas")
     worksheet_mock.clear.assert_called_once_with()
-    worksheet_mock.update.assert_called_once_with([["Nombre"], ["synthetic-a"]])
+    worksheet_mock.update.assert_called_once_with(
+        [["Nombre"], ["synthetic-a"]],
+        raw=False,
+    )

@@ -101,9 +101,10 @@ Para explorar otro periodo:
 2. El resumen, la evolución mensual y los quince gastos principales se actualizan
    sin ejecutar Streamlit.
 
-El rango se aplica por meses completos. La tabla mensual admite hasta 120 meses
-desde la fecha `Desde`. Los importes de la sección de principales gastos se
-muestran como negativos para distinguirlos de los ingresos.
+El rango respeta las fechas exactas de `Desde` y `Hasta`, incluidos los meses
+parciales. La tabla mensual admite hasta 120 meses desde la fecha `Desde`. Los
+importes de la sección de principales gastos se muestran como negativos para
+distinguirlos de los ingresos.
 
 El ranking de los quince gastos principales aparece a la derecha del resumen y
 del desglose por categorías, antes del detalle mensual, para que todo sea visible
