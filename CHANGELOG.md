@@ -70,6 +70,7 @@ from the member directory.
   dates, including partial first and last months.
 - Corrected the Top 15 `FILTER` predicates so exact-date ranges return the
   qualifying expenses instead of `"Sin gastos"`.
+- Restricted the Top 15 table and title to expenses classified as `Otros`.
 - Added a non-destructive layout migration that copies existing formatting when
   shifting the expense table to accommodate the new percentage columns.
 - Switched output updates from positional worksheet indexes to explicit tab

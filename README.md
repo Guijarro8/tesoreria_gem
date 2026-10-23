@@ -11,7 +11,7 @@ las hojas de cálculo de tesorería del GEM.
 - Calcula las cuotas pagadas por cada socio, consolidando nombres alternativos.
 - Excluye socios inactivos, antiguos y pagos únicos sospechosos.
 - Genera un informe financiero dinámico con resumen, evolución mensual y los
-  quince gastos principales.
+  quince gastos principales de la categoría `Otros`.
 - Agrupa gastos en alquiler, electricidad, comisiones bancarias, seguros y otros.
 - Muestra el porcentaje de ingresos aportado por cuotas y otros ingresos.
 - Muestra el porcentaje que representa cada categoría sobre el gasto total.
@@ -98,17 +98,17 @@ Para explorar otro periodo:
 
 1. Cambia las fechas de las celdas `B4` (`Desde`) y `B5` (`Hasta`) directamente
    en Google Sheets.
-2. El resumen, la evolución mensual y los quince gastos principales se actualizan
-   sin ejecutar Streamlit.
+2. El resumen, la evolución mensual y los quince gastos principales de `Otros`
+   se actualizan sin ejecutar Streamlit.
 
 El rango respeta las fechas exactas de `Desde` y `Hasta`, incluidos los meses
 parciales. La tabla mensual admite hasta 120 meses desde la fecha `Desde`. Los
 importes de la sección de principales gastos se muestran como negativos para
 distinguirlos de los ingresos.
 
-El ranking de los quince gastos principales aparece a la derecha del resumen y
-del desglose por categorías, antes del detalle mensual, para que todo sea visible
-sin recorrer la tabla de evolución.
+El ranking de los quince gastos principales de `Otros` aparece a la derecha del
+resumen y del desglose por categorías, antes del detalle mensual, para que todo
+sea visible sin recorrer la tabla de evolución.
 
 Las columnas de porcentaje están junto a los importes correspondientes. Si la
 hoja se actualiza desde una versión anterior, la migración copia los formatos

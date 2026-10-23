@@ -56,6 +56,7 @@ def _top_expenses_formula(separator: str) -> str:
     filter_formula = (
         f"FILTER({general}!$A$2:$C{separator}"
         f'{general}!$F$2:$F="gasto"{separator}'
+        f'{general}!$G$2:$G="Otros"{separator}'
         f"{general}!$A$2:$A>=$B$4{separator}"
         f"{general}!$A$2:$A<=$B$5)"
     )
@@ -99,7 +100,7 @@ def build_report_values(
             f"{separator}{end_date.day})",
         ],
         [],
-        ["Resumen del periodo", "", "", "", "Top 15 gastos"],
+        ["Resumen del periodo", "", "", "", "Top 15 gastos · Otros"],
         [
             "Indicador",
             "Importe",
@@ -341,7 +342,9 @@ def _upgrade_existing_report(
     )[0][0]
     has_exact_dates = isinstance(current_formula, str) and "MAX($B$4" in current_formula
     has_correct_top_filter = (
-        isinstance(current_top_formula, str) and '="gasto"' in current_top_formula
+        isinstance(current_top_formula, str)
+        and '="gasto"' in current_top_formula
+        and '="Otros"' in current_top_formula
     )
     has_percentages = worksheet.acell("C8").value == "Porcentaje"
     if has_exact_dates and has_correct_top_filter and has_percentages:
