@@ -35,6 +35,21 @@ is committed.
 **Impact:** the main transformation boundary is easier to test and reason about,
 and invalid interfaces are now visible to ty.
 
+### Member matching
+
+- Added a private, read-only member directory with one row per member and
+  spreadsheet-friendly alias columns.
+- Added accent, punctuation, casing, and whitespace normalization before matching.
+- Consolidated aliases to canonical member names and reported unmatched or
+  ambiguous fee-like transfers.
+- Added configurable 12-month inactivity and 3-month single-payment grace rules.
+- Removed manual fee-name columns from overwrite handling; uploads now clear stale
+  rows and write the generated table from column A.
+
+**Impact:** name variants no longer create duplicate fee rows, old or isolated
+payments are excluded with notices, and the generated name column cannot drift
+from the member directory.
+
 ### Bug fixes
 
 - Fixed the call to `Worksheet.update()` for the fee worksheet. The range (`B1`)
@@ -45,8 +60,8 @@ invalid argument order.
 
 ### Tests
 
-- Added unit tests for column normalization, movement classification, fee
-  aggregation, empty fee results, and the fee-table upload range.
+- Added synthetic-data unit tests for member matching, alias ambiguity, movement
+  classification, fee eligibility, empty results, and full-range uploads.
 
 **Impact:** the current financial transformation contract is covered before
 future functionality changes begin.
@@ -66,7 +81,7 @@ from the repository documentation, without committing generated files.
 - Ruff lint: passed.
 - Ruff format check: passed.
 - ty check: passed.
-- pytest: 4 tests passed.
+- pytest: 10 tests passed.
 - pre-commit: all four hooks passed.
 - Streamlit headless startup: passed at `http://localhost:8765`.
 

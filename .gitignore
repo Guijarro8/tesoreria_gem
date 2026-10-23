@@ -1,11 +1,16 @@
 .streamlit/
 guias-gem-tesoreria-service-account.json
-process_sabadel_to_sheets.ipynb
 data/
-dragdrop_tesoreria_nb.ipynb
 __pycache__/
 *.py[cod]
-.ipynb_checkpoints
 .pytest_cache/
 .ruff_cache/
 .venv/
+
+# Throway notebooks - any commited code should be go in .py modules
+*.ipynb
+.ipynb_checkpoints
+
+# Private stuff
+private/
+data/

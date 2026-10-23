@@ -8,3 +8,6 @@
 - Run `uv run pre-commit run --all-files` before pushing a feature branch.
 - Open a pull request targeting `master`; do not attempt to bypass its branch
   protection rules.
+- Never commit, log, or expose real member names, transfer descriptions, bank
+  exports, service-account credentials, or private lookup data. Keep those files
+  under `private/`, which is ignored, and use synthetic names in tests.

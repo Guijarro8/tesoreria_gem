@@ -1,12 +1,13 @@
 """Transform bank-movement workbooks and publish the results to Google Sheets."""
 
+from dataclasses import dataclass
 from numbers import Real
 from typing import BinaryIO, Literal, cast
 
 import gspread
 import pandas as pd
 
-from . import constants
+from . import constants, members
 
 type DataFramesToUpload = dict[str, pd.DataFrame]
 type MovementKind = Literal["cuota", "gasto", "varios"]
@@ -16,22 +17,72 @@ CUOTAS_POSIBLES = frozenset(
 )
 
 
-def extract_cuotas(df_movements: pd.DataFrame) -> pd.DataFrame:
-    """Aggregate payments by member and month.
+@dataclass(frozen=True)
+class FeeReport:
+    """Reconciliation details shown before an upload."""
 
-    Members with only one recorded payment are excluded because a single amount
-    matching a fee may instead be an expense, refund, or group contribution.
-    """
+    matching: members.MatchingReport
+    excluded_inactive_members: tuple[str, ...]
+    excluded_old_single_payments: tuple[str, ...]
+    excluded_stale_members: tuple[str, ...]
+    as_of: pd.Timestamp | None
+
+
+@dataclass(frozen=True)
+class ProcessedFile:
+    """Processed tables and their reconciliation report."""
+
+    dataframes: DataFramesToUpload
+    report: FeeReport
+
+
+def extract_cuotas(
+    df_movements: pd.DataFrame,
+    directory: members.MemberDirectory,
+    matching_report: members.MatchingReport,
+) -> tuple[pd.DataFrame, FeeReport]:
+    """Aggregate confirmed fee payments by member and month."""
+    fee_movements = df_movements[
+        (df_movements["tipo"] == "cuota") & df_movements["miembro"].notna()
+    ].copy()
+
+    dates = pd.to_datetime(df_movements["fecha"]).dropna()
+    as_of = cast(pd.Timestamp, dates.max()) if not dates.empty else None
+    eligible_members: set[str] = set()
+    excluded_inactive: list[str] = []
+    excluded_single: list[str] = []
+    excluded_stale: list[str] = []
+
+    if as_of is not None:
+        single_payment_cutoff = as_of - pd.DateOffset(
+            months=directory.settings.single_payment_grace_months
+        )
+        inactive_cutoff = as_of - pd.DateOffset(
+            months=directory.settings.inactive_after_months
+        )
+        members_by_name = directory.members_by_name
+
+        for member_name, payments in fee_movements.groupby("miembro", sort=True):
+            member = members_by_name[str(member_name)]
+            latest_payment = cast(pd.Timestamp, payments["fecha"].max())
+
+            if member.status == "inactivo":
+                excluded_inactive.append(member.name)
+            elif len(payments) == 1 and latest_payment < single_payment_cutoff:
+                excluded_single.append(member.name)
+            elif latest_payment < inactive_cutoff:
+                excluded_stale.append(member.name)
+            else:
+                eligible_members.add(member.name)
+
+    eligible_movements = fee_movements[fee_movements["miembro"].isin(eligible_members)]
     grouped_data = (
-        df_movements[df_movements["tipo"] == "cuota"]
-        .groupby(["concepto", "mes_anio"])
+        eligible_movements.groupby(["miembro", "mes_anio"], sort=True)
         .agg(importe_sum=("importe", "sum"))
         .reset_index()
     )
-
-    # pivot para generar el formato que queremos
     pivot_table = grouped_data.pivot(
-        index="concepto", columns="mes_anio", values="importe_sum"
+        index="miembro", columns="mes_anio", values="importe_sum"
     ).reset_index()
 
     period_columns = pivot_table.columns[1:]
@@ -46,15 +97,19 @@ def extract_cuotas(df_movements: pd.DataFrame) -> pd.DataFrame:
         pivot_table.loc[:, period_columns].isna().sum(axis=1)
     )
 
-    # Sólo consideramos a los socios que han pagado más de una cuota
-    # para evitar incluir aportaciones de salidas, ingresos de grupos, etc
-    pivot_table = pivot_table.loc[pivot_table["numero_cuotas_pagadas"] > 1]
     df_cuotas = pivot_table[
-        ["concepto"]
-        + [col for col in list(pivot_table.columns)[::-1] if col != "concepto"]
+        ["miembro"]
+        + [col for col in list(pivot_table.columns)[::-1] if col != "miembro"]
     ]
 
-    return cast(pd.DataFrame, df_cuotas)
+    report = FeeReport(
+        matching=matching_report,
+        excluded_inactive_members=tuple(excluded_inactive),
+        excluded_old_single_payments=tuple(excluded_single),
+        excluded_stale_members=tuple(excluded_stale),
+        as_of=as_of,
+    )
+    return cast(pd.DataFrame, df_cuotas), report
 
 
 def _classify_movement(amount: object) -> MovementKind:
@@ -89,21 +144,33 @@ def prepare_movements(raw_movements: pd.DataFrame) -> pd.DataFrame:
     return cast(pd.DataFrame, df_movements)
 
 
-def process_file(uploaded_file: BinaryIO) -> DataFramesToUpload:
+def process_file(
+    uploaded_file: BinaryIO,
+    directory: members.MemberDirectory,
+) -> ProcessedFile:
     """Read an uploaded workbook and return tables destined for Google Sheets."""
     raw_movements = pd.read_excel(uploaded_file, skiprows=8)
     df_movements = prepare_movements(raw_movements)
+    matched_movements, matching_report = members.match_movements(
+        df_movements,
+        directory,
+    )
 
     # Calcular cuotas por socio en base al importe de la cuota
-    df_cuotas = extract_cuotas(df_movements)
+    df_cuotas, report = extract_cuotas(
+        matched_movements,
+        directory,
+        matching_report,
+    )
 
     # DataFrames seleccionados y en orden para subir
-    return {
+    dataframes = {
         "cuotas": df_cuotas,
-        "general": df_movements,
-        "gasto": df_movements.loc[df_movements["tipo"] == "gasto"],
-        "varios": df_movements.loc[df_movements["tipo"] == "varios"],
+        "general": matched_movements,
+        "gasto": matched_movements.loc[matched_movements["tipo"] == "gasto"],
+        "varios": matched_movements.loc[matched_movements["tipo"] == "varios"],
     }
+    return ProcessedFile(dataframes=dataframes, report=report)
 
 
 def upload_dataframes(
@@ -132,8 +199,5 @@ def upload_dataframes(
         if worksheet is None:
             raise ValueError(f"La hoja {index} no existe en la hoja de cálculo.")
 
-        if df_name == "cuotas":
-            # Mantener la primera columna para el join con nombres de socios
-            worksheet.update(formatted_data, range_name="B1")
-        else:
-            worksheet.update(formatted_data)
+        worksheet.clear()
+        worksheet.update(formatted_data)
