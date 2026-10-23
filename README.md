@@ -1,66 +1,79 @@
 # Proyecto de Tesorería GEM
 
-Este proyecto utiliza Streamlit para crear una interfaz de usuario que permite actualizar una hoja de cálculo de Google Sheets con datos de tesorería del GEM.
+Aplicación de Streamlit para transformar extractos bancarios de Excel y actualizar
+las hojas de cálculo de tesorería del GEM.
 
 ## Características
 
-- **Interfaz Intuitiva**: Utiliza Streamlit para crear una interfaz de usuario sencilla y fácil de usar.
-- **Actualización de datos**: Los datos se actualizan en  en Google Sheets.
-- **Visualización de Datos**: Muestra gráficos y tablas para una mejor comprensión de tesorería
+- Carga archivos `.xls` y normaliza los movimientos bancarios.
+- Clasifica cuotas, gastos y movimientos varios.
+- Calcula las cuotas pagadas por cada socio.
+- Sustituye las cuatro primeras hojas de una hoja de cálculo de Google Sheets.
+- Muestra el resultado en una interfaz web desplegada con Streamlit.
 
 ## Requisitos
 
-- Python 
-- Librerías en requirements.txt
-- Cuenta de Google con acceso a Google Sheets
+- Python 3.13
+- Una cuenta de servicio de Google con acceso a la hoja de cálculo
+- [uv](https://docs.astral.sh/uv/#installation)
 
+## Configuración local
 
-## Cómo colaborar
-
-### Instalación
-
-Usamos [uv](https://docs.astral.sh/uv/#installation) para manejar el repositorio.
-Una vez instalado, crea un entorno virtual, actívalo e instala las dependencias:
+Instala las dependencias y crea el entorno gestionado por uv:
 
 ```bash
-uv venv
-source .venv/bin/activate
 uv sync
 ```
 
-Usamos [ruff](https://astral.sh/ruff) como linter y formateador. Aconsejamos también
-el uso de `pre-commit` para aplicar `ruff` automáticamente antes de hacer un commit.
-`pre-commit` se instala automáticamente al hacer `uv sync` pero hay que instalar los
-hooks manualmente:
-
-```bash
-pre-commit install
-```
-
-### Secretos
-
-Crea un archivo `.streamlit/secrets.toml` con el siguiente contenido:
+Crea `.streamlit/secrets.toml` con la clave de la hoja y las credenciales de la
+cuenta de servicio como una cadena JSON:
 
 ```toml
-tesoreria_gem_key="id_de_la_hoja_de_calculo"
-gcp_credentials="""credenciales_en_formato_json""" # Importante usar comillas triples
+tesoreria_gem_key = "id_de_la_hoja_de_calculo"
+gcp_credentials = """{"type": "service_account", "project_id": "...", ...}"""
 ```
 
-Para convertir un archivo de credenciales de Google Cloud a un string que se pueda
-usar en un archivo `.toml`, puedes usar el siguiente script:
+`.streamlit/` está excluido de Git. No publiques credenciales reales en el repositorio.
 
-```python
-import json
-
-credentials_file = "path/to/credentials.json"
-with open(credentials_file, "r") as f:
-    credentials = json.load(f)
-
-print(json.dumps(credentials))
-```
-
-### Ejecución
+Puedes convertir el archivo JSON descargado de Google Cloud a una sola línea con:
 
 ```bash
-streamlit run main.py
+python -c 'import json; print(json.dumps(json.load(open("credentials.json"))))'
+```
+
+## Ejecución
+
+```bash
+uv run streamlit run main.py
+```
+
+## Calidad del código
+
+El proyecto usa Ruff para linting y formato, ty para comprobación de tipos y pytest
+para las pruebas unitarias. Instala los hooks una vez por checkout:
+
+```bash
+uv run pre-commit install
+```
+
+Comandos disponibles:
+
+```bash
+uv run pre-commit run --all-files
+uv run ruff check .
+uv run ruff format --check .
+uv run ty check .
+uv run pytest
+```
+
+Ruff y ty se ejecutan también automáticamente antes de cada commit, junto con las
+pruebas unitarias.
+
+## Estructura
+
+```text
+main.py                  Interfaz de Streamlit
+drag_drop/constants.py   Cuotas y nombres de columnas
+drag_drop/utils.py       Procesamiento de Excel y publicación en Google Sheets
+tests/                   Pruebas unitarias de las transformaciones
 ```

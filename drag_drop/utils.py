@@ -1,10 +1,27 @@
+"""Transform bank-movement workbooks and publish the results to Google Sheets."""
+
+from numbers import Real
+from typing import BinaryIO, Literal, cast
+
+import gspread
 import pandas as pd
 
 from . import constants
 
+type DataFramesToUpload = dict[str, pd.DataFrame]
+type MovementKind = Literal["cuota", "gasto", "varios"]
 
-def extract_cuotas(df_movements):
-    """Extraer cuotas pagadas de los movimientos, por socio"""
+CUOTAS_POSIBLES = frozenset(
+    cuota * payments for payments in range(1, 8) for cuota in constants.CUOTAS
+)
+
+
+def extract_cuotas(df_movements: pd.DataFrame) -> pd.DataFrame:
+    """Aggregate payments by member and month.
+
+    Members with only one recorded payment are excluded because a single amount
+    matching a fee may instead be an expense, refund, or group contribution.
+    """
     grouped_data = (
         df_movements[df_movements["tipo"] == "cuota"]
         .groupby(["concepto", "mes_anio"])
@@ -17,14 +34,16 @@ def extract_cuotas(df_movements):
         index="concepto", columns="mes_anio", values="importe_sum"
     ).reset_index()
 
+    period_columns = pivot_table.columns[1:]
+
     # El importe total pagado
-    pivot_table["importe_pagado_total"] = pivot_table.iloc[:, 1:].sum(
+    pivot_table["importe_pagado_total"] = pivot_table.loc[:, period_columns].sum(
         axis=1, skipna=True
     )
 
     # conteo de null para obtener el número de cuotas pagadas
-    pivot_table["numero_cuotas_pagadas"] = (
-        pivot_table.shape[1] - pivot_table.iloc[:, 1:].isna().sum(axis=1) - 2
+    pivot_table["numero_cuotas_pagadas"] = len(period_columns) - (
+        pivot_table.loc[:, period_columns].isna().sum(axis=1)
     )
 
     # Sólo consideramos a los socios que han pagado más de una cuota
@@ -35,29 +54,29 @@ def extract_cuotas(df_movements):
         + [col for col in list(pivot_table.columns)[::-1] if col != "concepto"]
     ]
 
-    return df_cuotas
+    return cast(pd.DataFrame, df_cuotas)
 
 
-def process_file(uploaded_file):
-    """Read the uploaded file and return processed DataFrames"""
-    # Read the Excel file and save it as a CSV
-    df_movements = pd.read_excel(uploaded_file, skiprows=8)
+def _classify_movement(amount: object) -> MovementKind:
+    """Classify a movement from its signed amount."""
+    if not isinstance(amount, Real):
+        return "varios"
+    if amount in CUOTAS_POSIBLES:
+        return "cuota"
+    if amount < 0:
+        return "gasto"
+    return "varios"
 
-    # Formato y limpieza de datos
-    df_movements = df_movements.rename(columns=constants.COLUMNS_RENAME["raw"])
+
+def prepare_movements(raw_movements: pd.DataFrame) -> pd.DataFrame:
+    """Normalize raw worksheet data and classify each bank movement."""
+    df_movements = raw_movements.rename(columns=constants.COLUMNS_RENAME["raw"]).copy()
     df_movements = df_movements[["fecha", "concepto", "importe", "saldo"]]
     df_movements["fecha"] = pd.to_datetime(df_movements["fecha"], format="%d/%m/%Y")
     df_movements["mes_anio"] = df_movements["fecha"].dt.to_period("M").astype(str)
-    cuotas_posibles = set()
-    for i in range(1, 8):
-        # Hay personas que pagan varias cuotas, hasta 7
-        for cuota in constants.CUOTAS:
-            cuotas_posibles.add(cuota * i)
-    df_movements["tipo"] = df_movements["importe"].apply(
-        lambda x: "cuota" if x in cuotas_posibles else ("gasto" if x < 0 else "varios")
-    )
+    df_movements["tipo"] = df_movements["importe"].map(_classify_movement)
 
-    # tratamiento de concepto
+    df_movements["concepto"] = df_movements["concepto"].astype(str)
     for word in ["ABONO", "TRANSFERENCIA", "RECIBO", "PAGO"]:
         df_movements["concepto"] = (
             df_movements["concepto"].str.replace(word, "", case=False).str.strip()
@@ -67,39 +86,54 @@ def process_file(uploaded_file):
     )
     df_movements["concepto"] = df_movements["concepto"].str.lower()
 
+    return cast(pd.DataFrame, df_movements)
+
+
+def process_file(uploaded_file: BinaryIO) -> DataFramesToUpload:
+    """Read an uploaded workbook and return tables destined for Google Sheets."""
+    raw_movements = pd.read_excel(uploaded_file, skiprows=8)
+    df_movements = prepare_movements(raw_movements)
+
     # Calcular cuotas por socio en base al importe de la cuota
     df_cuotas = extract_cuotas(df_movements)
 
     # DataFrames seleccionados y en orden para subir
-    dfs_to_upload = {
+    return {
         "cuotas": df_cuotas,
         "general": df_movements,
         "gasto": df_movements.loc[df_movements["tipo"] == "gasto"],
         "varios": df_movements.loc[df_movements["tipo"] == "varios"],
     }
 
-    return dfs_to_upload
 
+def upload_dataframes(
+    dataframes: DataFramesToUpload,
+    spreadsheet: gspread.Spreadsheet,
+) -> None:
+    """Replace the first four worksheets with the supplied DataFrames."""
 
-def upload_dataframes(dfs_to_upload, sheet):
-    """Upload DataFrames to a Google Sheet"""
-
-    for i, (df_name, df) in enumerate(dfs_to_upload.items(), start=1):
+    for index, (df_name, dataframe) in enumerate(dataframes.items(), start=1):
         # Renombramos colunas con nombres bonitos
         if new_cols := constants.COLUMNS_RENAME.get(df_name):
-            df = df.rename(columns=new_cols)
+            dataframe = dataframe.rename(columns=new_cols)
 
         # llenar nulos con vacio
-        df = df.fillna("-")
+        dataframe = dataframe.fillna("-")
         # borrar formato fecha
         if df_name != "cuotas":
-            df["fecha"] = df["fecha"].astype(str)
+            dataframe["fecha"] = dataframe["fecha"].astype(str)
 
         # Formatear y subir a google sheets
-        upload_formated_data = [df.columns.tolist()] + df.values.tolist()
+        formatted_data = cast(
+            list[list[object]],
+            [dataframe.columns.tolist(), *dataframe.values.tolist()],
+        )
+        worksheet = spreadsheet.get_worksheet(index)
+        if worksheet is None:
+            raise ValueError(f"La hoja {index} no existe en la hoja de cálculo.")
 
         if df_name == "cuotas":
             # Mantener la primera columna para el join con nombres de socios
-            sheet.get_worksheet(i).update("B1", upload_formated_data)
+            worksheet.update(formatted_data, range_name="B1")
         else:
-            sheet.get_worksheet(i).update(upload_formated_data)
+            worksheet.update(formatted_data)
