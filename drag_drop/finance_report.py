@@ -55,9 +55,9 @@ def _top_expenses_formula(separator: str) -> str:
     general = f"'{constants.GENERAL_MOVEMENTS_TAB}'"
     filter_formula = (
         f"FILTER({general}!$A$2:$C{separator}"
-        f'{general}!$F$2:$F{separator}"gasto"{separator}'
-        f'{general}!$A$2:$A{separator}">="&$B$4{separator}'
-        f'{general}!$A$2:$A{separator}"<="&$B$5)'
+        f'{general}!$F$2:$F="gasto"{separator}'
+        f"{general}!$A$2:$A>=$B$4{separator}"
+        f"{general}!$A$2:$A<=$B$5)"
     )
     return (
         f"=IFERROR(SORTN({filter_formula}{separator}15{separator}"
@@ -335,9 +335,16 @@ def _upgrade_existing_report(
         "B27",
         value_render_option=cast(gspread.utils.ValueRenderOption, "FORMULA"),
     )[0][0]
+    current_top_formula = worksheet.get(
+        "E9",
+        value_render_option=cast(gspread.utils.ValueRenderOption, "FORMULA"),
+    )[0][0]
     has_exact_dates = isinstance(current_formula, str) and "MAX($B$4" in current_formula
+    has_correct_top_filter = (
+        isinstance(current_top_formula, str) and '="gasto"' in current_top_formula
+    )
     has_percentages = worksheet.acell("C8").value == "Porcentaje"
-    if has_exact_dates and has_percentages:
+    if has_exact_dates and has_correct_top_filter and has_percentages:
         return
 
     is_legacy_layout = worksheet.acell("D7").value == "Top 15 gastos"

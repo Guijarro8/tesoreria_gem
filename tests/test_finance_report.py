@@ -35,6 +35,7 @@ def test_report_layout_uses_dynamic_date_and_month_formulas() -> None:
     assert values[8][1] == "=SUM(B27:B146)"
     assert values[8][2] == "=IFERROR(B9/B11,0)"
     assert "SORTN(FILTER(" in str(values[8][4])
+    assert '="gasto"' in str(values[8][4])
     assert "$B$4" in str(values[8][4])
     assert "$B$5" in str(values[8][4])
     assert values[16][0] == "Alquiler"
@@ -78,7 +79,14 @@ def test_existing_report_is_not_recreated() -> None:
     spreadsheet_mock.fetch_sheet_metadata.return_value = {
         "properties": {"locale": "en_US"}
     }
-    existing.get.return_value = [['=IF($A27="";"";MAX($B$4);MIN($B$5))']]
+    existing.get.side_effect = [
+        [['=IF($A27="";"";MAX($B$4);MIN($B$5))']],
+        [
+            [
+                '=IFERROR(SORTN(FILTER(General!$A$2:$C;General!$F$2:$F="gasto");15;2;3;TRUE))'
+            ]
+        ],
+    ]
     existing.acell.return_value.value = "Porcentaje"
 
     result = finance_report.ensure_finance_report_sheet(

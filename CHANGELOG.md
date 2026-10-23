@@ -68,6 +68,8 @@ from the member directory.
   percentages for every expense category.
 - Changed report filtering from month-only comparisons to exact `Desde`/`Hasta`
   dates, including partial first and last months.
+- Corrected the Top 15 `FILTER` predicates so exact-date ranges return the
+  qualifying expenses instead of `"Sin gastos"`.
 - Added a non-destructive layout migration that copies existing formatting when
   shifting the expense table to accommodate the new percentage columns.
 - Switched output updates from positional worksheet indexes to explicit tab
