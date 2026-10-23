@@ -88,9 +88,9 @@ a otro socio y los socios excluidos.
 
 ## Informe financiero
 
-La primera actualización crea una hoja `Informe` en la hoja de cálculo de salida.
-Sus fórmulas leen directamente de `General` y se recalculan automáticamente cuando
-se actualizan los movimientos.
+La primera actualización crea una hoja `Informe` en la segunda posición de la
+hoja de cálculo de salida. Sus fórmulas leen directamente de `General` y se
+recalculan automáticamente cuando se actualizan los movimientos.
 
 Para explorar otro periodo:
 
@@ -102,6 +102,9 @@ Para explorar otro periodo:
 El rango se aplica por meses completos. La tabla mensual admite hasta 120 meses
 desde la fecha `Desde`. Los importes de la sección de principales gastos se
 muestran como negativos para distinguirlos de los ingresos.
+
+Los rankings de gastos aparecen antes del detalle mensual para que sean visibles
+sin recorrer toda la tabla de evolución.
 
 La clasificación de gastos se calcula al procesar los movimientos y se guarda en
 la columna `categoria_gasto` de `General` y `Gastos`. Los dos conceptos de Canal

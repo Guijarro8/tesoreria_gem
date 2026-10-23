@@ -66,6 +66,8 @@ from the member directory.
 - Added category totals and a formula-driven top-twenty list for `Otros`.
 - Switched output updates from positional worksheet indexes to explicit tab
   names so inserting `Informe` cannot move data into the wrong sheets.
+- Moved both expense rankings above the monthly table and enforce `Informe` as
+  the second worksheet.
 - Made formulas locale-aware so Spanish Google Sheets accounts use semicolon
   argument separators.
 

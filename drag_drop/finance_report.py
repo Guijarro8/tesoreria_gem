@@ -22,19 +22,19 @@ CATEGORY_SECTION_ROW = 15
 CATEGORY_HEADER_ROW = 16
 CATEGORY_FIRST_ROW = 17
 
-MONTH_TABLE_SECTION_ROW = 23
-MONTH_TABLE_HEADER_ROW = 24
-MONTH_TABLE_START_ROW = 25
-MONTH_TABLE_ROWS = 120
-MONTH_TABLE_END_ROW = MONTH_TABLE_START_ROW + MONTH_TABLE_ROWS - 1
-
-TOP_EXPENSES_SECTION_ROW = MONTH_TABLE_END_ROW + 2
+TOP_EXPENSES_SECTION_ROW = CATEGORY_FIRST_ROW + len(EXPENSE_CATEGORIES) + 1
 TOP_EXPENSES_HEADER_ROW = TOP_EXPENSES_SECTION_ROW + 1
 TOP_EXPENSES_FIRST_ROW = TOP_EXPENSES_HEADER_ROW + 1
 
 OTHER_EXPENSES_SECTION_ROW = TOP_EXPENSES_FIRST_ROW + 11
 OTHER_EXPENSES_HEADER_ROW = OTHER_EXPENSES_SECTION_ROW + 1
 OTHER_EXPENSES_FIRST_ROW = OTHER_EXPENSES_HEADER_ROW + 1
+
+MONTH_TABLE_SECTION_ROW = OTHER_EXPENSES_FIRST_ROW + 21
+MONTH_TABLE_HEADER_ROW = MONTH_TABLE_SECTION_ROW + 1
+MONTH_TABLE_START_ROW = MONTH_TABLE_HEADER_ROW + 1
+MONTH_TABLE_ROWS = 120
+MONTH_TABLE_END_ROW = MONTH_TABLE_START_ROW + MONTH_TABLE_ROWS - 1
 
 
 def formula_separator(locale: str) -> str:
@@ -119,9 +119,48 @@ def build_report_values(
         ]
         for category in EXPENSE_CATEGORIES
     )
+
+    query_text = (
+        "\"select A, B, C where F = 'gasto' "
+        "and E >= '\"&"
+        f"{month_start}&"
+        "\"' and E <= '\"&"
+        f"{month_end}&"
+        '"\' order by C asc limit 10"'
+    )
+    other_query_text = (
+        "\"select A, B, C where F = 'gasto' and G = 'Otros' "
+        "and E >= '\"&"
+        f"{month_start}&"
+        "\"' and E <= '\"&"
+        f"{month_end}&"
+        '"\' order by C asc limit 20"'
+    )
     values.extend(
         [
             [],
+            ["Top 10 gastos"],
+            ["Fecha", "Concepto", "Importe (negativo)"],
+            [
+                f"=IFERROR(QUERY({general}!$A$2:$H{separator}{query_text}"
+                f'{separator}0){separator}"Sin gastos")'
+            ],
+        ]
+    )
+    values.extend(
+        [[] for _ in range(10)]
+        + [
+            ["Top 20 gastos · Otros"],
+            ["Fecha", "Concepto", "Importe (negativo)"],
+            [
+                f"=IFERROR(QUERY({general}!$A$2:$H{separator}"
+                f'{other_query_text}{separator}0){separator}"Sin gastos")'
+            ],
+        ]
+    )
+    values.extend(
+        [
+            *[[] for _ in range(20)],
             ["Evolución mensual"],
             [
                 "Mes",
@@ -188,44 +227,6 @@ def build_report_values(
             ]
         )
 
-    query_text = (
-        "\"select A, B, C where F = 'gasto' "
-        "and E >= '\"&"
-        f"{month_start}&"
-        "\"' and E <= '\"&"
-        f"{month_end}&"
-        '"\' order by C asc limit 10"'
-    )
-    other_query_text = (
-        "\"select A, B, C where F = 'gasto' and G = 'Otros' "
-        "and E >= '\"&"
-        f"{month_start}&"
-        "\"' and E <= '\"&"
-        f"{month_end}&"
-        '"\' order by C asc limit 20"'
-    )
-    values.extend(
-        [
-            [],
-            ["Top 10 gastos"],
-            ["Fecha", "Concepto", "Importe (negativo)"],
-            [
-                f"=IFERROR(QUERY({general}!$A$2:$H{separator}{query_text}"
-                f'{separator}0){separator}"Sin gastos")'
-            ],
-        ]
-    )
-    values.extend(
-        [[] for _ in range(10)]
-        + [
-            ["Top 20 gastos · Otros"],
-            ["Fecha", "Concepto", "Importe (negativo)"],
-            [
-                f"=IFERROR(QUERY({general}!$A$2:$H{separator}"
-                f'{other_query_text}{separator}0){separator}"Sin gastos")'
-            ],
-        ]
-    )
     return values
 
 
@@ -240,14 +241,17 @@ def ensure_finance_report_sheet(
     try:
         worksheet = spreadsheet.worksheet(constants.FINANCE_REPORT_TAB)
     except gspread.WorksheetNotFound:
+        worksheets = spreadsheet.worksheets()
+        target_index = 1 if len(worksheets) > 1 else 0
         worksheet = spreadsheet.add_worksheet(
             title=constants.FINANCE_REPORT_TAB,
             rows=200,
             cols=11,
-            index=len(spreadsheet.worksheets()),
+            index=target_index,
         )
     else:
-        worksheet.update_index(len(spreadsheet.worksheets()) - 1)
+        target_index = 1 if len(spreadsheet.worksheets()) > 1 else 0
+        worksheet.update_index(target_index)
         if not replace:
             _ensure_report_dimensions(worksheet)
             return worksheet
