@@ -7,8 +7,6 @@
 - Fast-forwarded local `master` to the current remote tip (`1c5684a`). Pull request
   #3 had already merged all changes from `alvaro/refactor-and-add-more-cuotas`;
   no branch work is currently missing from `master`.
-- Kept the rename from `master` to `main` as a separate final step after these
-  changes have been reviewed and committed.
 
 ### Tooling
 
@@ -84,5 +82,4 @@ from the repository documentation, without committing generated files.
    responses, including partial failures and retries.
 5. Add user-facing validation and errors for unreadable files, malformed
    concepts, missing secrets, and unavailable worksheets.
-6. Add CI to run pre-commit on pushes and pull requests after the default branch
-   has been moved to `main`.
+6. Add CI to run pre-commit on pushes and pull requests targeting `master`.
