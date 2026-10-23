@@ -71,6 +71,11 @@ def test_prepare_movements_normalizes_columns_and_classifies_rows() -> None:
         "varios",
     ]
     assert movements["tipo"].tolist() == ["cuota", "gasto", "varios"]
+    assert movements[constants.EXPENSE_CATEGORY_COLUMN].tolist() == [
+        "",
+        constants.EXPENSE_OTHER,
+        "",
+    ]
 
 
 def test_extract_cuotas_applies_membership_and_activity_rules() -> None:
@@ -207,7 +212,7 @@ def test_extract_cuotas_sorts_by_accent_insensitive_name_without_rewriting_it() 
 
 def test_upload_dataframes_clears_and_writes_from_column_a() -> None:
     spreadsheet_mock = Mock()
-    worksheet_mock = spreadsheet_mock.get_worksheet.return_value
+    worksheet_mock = spreadsheet_mock.worksheet.return_value
     dataframes = {"cuotas": pd.DataFrame({"miembro": ["synthetic-a"]})}
 
     utils.upload_dataframes(
@@ -215,5 +220,6 @@ def test_upload_dataframes_clears_and_writes_from_column_a() -> None:
         cast(gspread.Spreadsheet, spreadsheet_mock),
     )
 
+    spreadsheet_mock.worksheet.assert_called_once_with("Cuotas")
     worksheet_mock.clear.assert_called_once_with()
     worksheet_mock.update.assert_called_once_with([["Nombre"], ["synthetic-a"]])

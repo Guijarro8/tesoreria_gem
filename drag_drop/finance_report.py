@@ -10,11 +10,31 @@ import pandas as pd
 
 from . import constants
 
+EXPENSE_CATEGORIES = (
+    constants.EXPENSE_RENT,
+    constants.EXPENSE_ELECTRICITY,
+    constants.EXPENSE_BANK_FEES,
+    constants.EXPENSE_INSURANCE,
+    constants.EXPENSE_OTHER,
+)
+
+CATEGORY_SECTION_ROW = 15
+CATEGORY_HEADER_ROW = 16
+CATEGORY_FIRST_ROW = 17
+
+MONTH_TABLE_SECTION_ROW = 23
+MONTH_TABLE_HEADER_ROW = 24
+MONTH_TABLE_START_ROW = 25
 MONTH_TABLE_ROWS = 120
-MONTH_TABLE_START_ROW = 18
-TOP_EXPENSES_SECTION_ROW = MONTH_TABLE_START_ROW + MONTH_TABLE_ROWS + 1
+MONTH_TABLE_END_ROW = MONTH_TABLE_START_ROW + MONTH_TABLE_ROWS - 1
+
+TOP_EXPENSES_SECTION_ROW = MONTH_TABLE_END_ROW + 2
 TOP_EXPENSES_HEADER_ROW = TOP_EXPENSES_SECTION_ROW + 1
 TOP_EXPENSES_FIRST_ROW = TOP_EXPENSES_HEADER_ROW + 1
+
+OTHER_EXPENSES_SECTION_ROW = TOP_EXPENSES_FIRST_ROW + 11
+OTHER_EXPENSES_HEADER_ROW = OTHER_EXPENSES_SECTION_ROW + 1
+OTHER_EXPENSES_FIRST_ROW = OTHER_EXPENSES_HEADER_ROW + 1
 
 
 def formula_separator(locale: str) -> str:
@@ -47,7 +67,9 @@ def build_report_values(
     general = f"'{constants.GENERAL_MOVEMENTS_TAB}'"
     month_start = f'TEXT($B$4{separator}"YYYY-MM")'
     month_end = f'TEXT($B$5{separator}"YYYY-MM")'
-    final_month_row = MONTH_TABLE_START_ROW + MONTH_TABLE_ROWS - 1
+    category_columns = dict(
+        zip(EXPENSE_CATEGORIES, ("G", "H", "I", "J", "K"), strict=True)
+    )
 
     values: list[list[object]] = [
         ["Informe financiero GEM"],
@@ -71,23 +93,47 @@ def build_report_values(
         ["Indicador", "Importe"],
         [
             "Cuotas de socios",
-            f"=SUM(B{MONTH_TABLE_START_ROW}:B{final_month_row})",
+            f"=SUM(B{MONTH_TABLE_START_ROW}:B{MONTH_TABLE_END_ROW})",
         ],
         [
             "Otros ingresos",
-            f"=SUM(C{MONTH_TABLE_START_ROW}:C{final_month_row})",
+            f"=SUM(C{MONTH_TABLE_START_ROW}:C{MONTH_TABLE_END_ROW})",
         ],
         ["Ingresos totales", "=B9+B10"],
         [
             "Gastos",
-            f"=SUM(E{MONTH_TABLE_START_ROW}:E{final_month_row})",
+            f"=SUM(E{MONTH_TABLE_START_ROW}:E{MONTH_TABLE_END_ROW})",
         ],
         ["Balance neto", "=B11-B12"],
-        ["", ""],
         [],
-        ["Evolución mensual"],
-        ["Mes", "Cuotas", "Otros ingresos", "Ingresos totales", "Gastos", "Balance"],
+        ["Gastos por tipo"],
+        ["Categoría", "Importe"],
     ]
+    values.extend(
+        [
+            category,
+            (
+                f"=SUM({category_columns[category]}{MONTH_TABLE_START_ROW}:"
+                f"{category_columns[category]}{MONTH_TABLE_END_ROW})"
+            ),
+        ]
+        for category in EXPENSE_CATEGORIES
+    )
+    values.extend(
+        [
+            [],
+            ["Evolución mensual"],
+            [
+                "Mes",
+                "Cuotas",
+                "Otros ingresos",
+                "Ingresos totales",
+                "Gastos",
+                "Balance",
+                *EXPENSE_CATEGORIES,
+            ],
+        ]
+    )
 
     for offset in range(MONTH_TABLE_ROWS):
         row_number = MONTH_TABLE_START_ROW + offset
@@ -124,15 +170,21 @@ def build_report_values(
                 ),
                 f'=IF($A{row_number}=""{separator}""{separator}'
                 f"B{row_number}+C{row_number})",
-                (
-                    f'=IF($A{row_number}=""{separator}""{separator}'
-                    f"-SUMIFS({general}!$C$2:$C{separator}"
-                    f'{general}!$F$2:$F{separator}"gasto"{separator}'
-                    f'{general}!$C$2:$C{separator}"<0"{separator}'
-                    f"{general}!$E$2:$E{separator}$A{row_number}))"
-                ),
+                f'=IF($A{row_number}=""{separator}""{separator}'
+                f"SUM(G{row_number}:K{row_number}))",
                 f'=IF($A{row_number}=""{separator}""{separator}'
                 f"D{row_number}-E{row_number})",
+                *[
+                    (
+                        f'=IF($A{row_number}=""{separator}""{separator}'
+                        f"-SUMIFS({general}!$C$2:$C{separator}"
+                        f'{general}!$F$2:$F{separator}"gasto"{separator}'
+                        f'{general}!$G$2:$G{separator}"{category}"'
+                        f"{separator}{general}!$E$2:$E{separator}"
+                        f"$A{row_number}))"
+                    )
+                    for category in EXPENSE_CATEGORIES
+                ],
             ]
         )
 
@@ -144,14 +196,33 @@ def build_report_values(
         f"{month_end}&"
         '"\' order by C asc limit 10"'
     )
+    other_query_text = (
+        "\"select A, B, C where F = 'gasto' and G = 'Otros' "
+        "and E >= '\"&"
+        f"{month_start}&"
+        "\"' and E <= '\"&"
+        f"{month_end}&"
+        '"\' order by C asc limit 20"'
+    )
     values.extend(
         [
             [],
             ["Top 10 gastos"],
             ["Fecha", "Concepto", "Importe (negativo)"],
             [
-                f"=IFERROR(QUERY({general}!$A$2:$F{separator}{query_text}"
+                f"=IFERROR(QUERY({general}!$A$2:$H{separator}{query_text}"
                 f'{separator}0){separator}"Sin gastos")'
+            ],
+        ]
+    )
+    values.extend(
+        [[] for _ in range(10)]
+        + [
+            ["Top 20 gastos · Otros"],
+            ["Fecha", "Concepto", "Importe (negativo)"],
+            [
+                f"=IFERROR(QUERY({general}!$A$2:$H{separator}"
+                f'{other_query_text}{separator}0){separator}"Sin gastos")'
             ],
         ]
     )
@@ -171,11 +242,14 @@ def ensure_finance_report_sheet(
     except gspread.WorksheetNotFound:
         worksheet = spreadsheet.add_worksheet(
             title=constants.FINANCE_REPORT_TAB,
-            rows=160,
-            cols=6,
+            rows=200,
+            cols=11,
+            index=len(spreadsheet.worksheets()),
         )
     else:
+        worksheet.update_index(len(spreadsheet.worksheets()) - 1)
         if not replace:
+            _ensure_report_dimensions(worksheet)
             return worksheet
 
     if start_date is None or end_date is None:
@@ -183,6 +257,7 @@ def ensure_finance_report_sheet(
     metadata = cast(dict[str, Any], spreadsheet.fetch_sheet_metadata())
     properties = cast(dict[str, Any], metadata.get("properties", {}))
     locale = str(properties.get("locale", ""))
+    _ensure_report_dimensions(worksheet)
     worksheet.clear()
     worksheet.update(
         build_report_values(
@@ -195,6 +270,13 @@ def ensure_finance_report_sheet(
     )
     _format_report(worksheet)
     return worksheet
+
+
+def _ensure_report_dimensions(worksheet: gspread.Worksheet) -> None:
+    if worksheet.row_count < 200:
+        worksheet.add_rows(200 - worksheet.row_count)
+    if worksheet.col_count < 11:
+        worksheet.add_cols(11 - worksheet.col_count)
 
 
 def _format_report(worksheet: gspread.Worksheet) -> None:
@@ -212,18 +294,37 @@ def _format_report(worksheet: gspread.Worksheet) -> None:
     amount_format: dict[str, Any] = {
         "numberFormat": {"type": "CURRENCY", "pattern": '#,##0.00 "€"'}
     }
-    final_month_row = MONTH_TABLE_START_ROW + MONTH_TABLE_ROWS - 1
-    final_expense_row = TOP_EXPENSES_FIRST_ROW + 9
-
-    worksheet.format("A1:F1", title_format)
-    worksheet.format("A7:F8", section_format)
-    worksheet.format("A16:F17", section_format)
+    worksheet.format("A1:K1", title_format)
+    worksheet.format("A7:B8", section_format)
+    worksheet.format("A15:B16", section_format)
+    worksheet.format(
+        f"A{MONTH_TABLE_SECTION_ROW}:K{MONTH_TABLE_HEADER_ROW}",
+        section_format,
+    )
     worksheet.format(
         f"A{TOP_EXPENSES_SECTION_ROW}:C{TOP_EXPENSES_HEADER_ROW}",
         section_format,
     )
+    worksheet.format(
+        f"A{OTHER_EXPENSES_SECTION_ROW}:C{OTHER_EXPENSES_HEADER_ROW}",
+        section_format,
+    )
     worksheet.format("B4:B5", {"numberFormat": {"type": "DATE"}})
     worksheet.format("B9:B13", amount_format)
-    worksheet.format(f"B{MONTH_TABLE_START_ROW}:F{final_month_row}", amount_format)
-    worksheet.format(f"C{TOP_EXPENSES_FIRST_ROW}:C{final_expense_row}", amount_format)
+    worksheet.format(
+        f"B{CATEGORY_FIRST_ROW}:B{CATEGORY_FIRST_ROW + len(EXPENSE_CATEGORIES) - 1}",
+        amount_format,
+    )
+    worksheet.format(
+        f"B{MONTH_TABLE_START_ROW}:K{MONTH_TABLE_END_ROW}",
+        amount_format,
+    )
+    worksheet.format(
+        f"C{TOP_EXPENSES_FIRST_ROW}:C{TOP_EXPENSES_FIRST_ROW + 9}",
+        amount_format,
+    )
+    worksheet.format(
+        f"C{OTHER_EXPENSES_FIRST_ROW}:C{OTHER_EXPENSES_FIRST_ROW + 19}",
+        amount_format,
+    )
     worksheet.freeze(rows=5)

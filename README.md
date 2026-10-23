@@ -12,6 +12,8 @@ las hojas de cálculo de tesorería del GEM.
 - Excluye socios inactivos, antiguos y pagos únicos sospechosos.
 - Genera un informe financiero dinámico con resumen, evolución mensual y los
   diez gastos principales.
+- Agrupa gastos en alquiler, electricidad, comisiones bancarias, seguros y otros.
+- Incluye un desglose de los veinte gastos mayores de la categoría `Otros`.
 - Sustituye las cuatro primeras hojas de una hoja de cálculo de Google Sheets.
 - Muestra el resultado en una interfaz web desplegada con Streamlit.
 
@@ -101,6 +103,13 @@ El rango se aplica por meses completos. La tabla mensual admite hasta 120 meses
 desde la fecha `Desde`. Los importes de la sección de principales gastos se
 muestran como negativos para distinguirlos de los ingresos.
 
+La clasificación de gastos se calcula al procesar los movimientos y se guarda en
+la columna `categoria_gasto` de `General` y `Gastos`. Los dos conceptos de Canal
+de Isabel II se distinguen antes de normalizar la puntuación: el alquiler por su
+concepto y el importe fijo de 372,23 €, y la electricidad por el concepto sin esa
+puntuación. Las comisiones bancarias se detectan por `comision` y los seguros por
+`seguros helvetia`; el resto se agrupa como `Otros`.
+
 ## Ejecución
 
 ```bash
@@ -138,4 +147,5 @@ drag_drop/members.py     Lectura y validación del directorio privado
 drag_drop/utils.py       Procesamiento de Excel y publicación en Google Sheets
 tests/                   Pruebas unitarias de las transformaciones
 drag_drop/finance_report.py  Generación de la hoja Informe basada en fórmulas
+drag_drop/expenses.py     Clasificación de gastos para el informe
 ```

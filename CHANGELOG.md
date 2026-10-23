@@ -61,6 +61,11 @@ from the member directory.
 - Added dynamic totals for member fees, other income, total income, costs, and
   net balance.
 - Added a monthly evolution table and a formula-driven top-ten expense query.
+- Added expense categories stored in `General` and `Gastos`, including distinct
+  rent and electricity classification for the two Canal de Isabel II concepts.
+- Added category totals and a formula-driven top-twenty list for `Otros`.
+- Switched output updates from positional worksheet indexes to explicit tab
+  names so inserting `Informe` cannot move data into the wrong sheets.
 - Made formulas locale-aware so Spanish Google Sheets accounts use semicolon
   argument separators.
 
@@ -98,7 +103,7 @@ from the repository documentation, without committing generated files.
 - Ruff lint: passed.
 - Ruff format check: passed.
 - ty check: passed.
-- pytest: 16 tests passed.
+- pytest: 23 tests passed.
 - pre-commit: all four hooks passed.
 - Streamlit headless startup: passed at `http://localhost:8765`.
 

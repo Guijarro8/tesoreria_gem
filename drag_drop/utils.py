@@ -7,7 +7,7 @@ from typing import BinaryIO, Literal, cast
 import gspread
 import pandas as pd
 
-from . import constants, members
+from . import constants, expenses, members
 
 type DataFramesToUpload = dict[str, pd.DataFrame]
 type MovementKind = Literal["cuota", "gasto", "varios"]
@@ -145,6 +145,15 @@ def prepare_movements(raw_movements: pd.DataFrame) -> pd.DataFrame:
         lambda x: x[3:] if x.startswith("DE ") else x
     )
     df_movements["concepto"] = df_movements["concepto"].str.lower()
+    df_movements[constants.EXPENSE_CATEGORY_COLUMN] = [
+        expenses.classify_expense(concept, amount) if movement_type == "gasto" else ""
+        for concept, amount, movement_type in zip(
+            df_movements["concepto"],
+            df_movements["importe"],
+            df_movements["tipo"],
+            strict=True,
+        )
+    ]
 
     return cast(pd.DataFrame, df_movements)
 
@@ -184,7 +193,7 @@ def upload_dataframes(
 ) -> None:
     """Replace the first four worksheets with the supplied DataFrames."""
 
-    for index, (df_name, dataframe) in enumerate(dataframes.items(), start=1):
+    for df_name, dataframe in dataframes.items():
         # Renombramos colunas con nombres bonitos
         if new_cols := constants.COLUMNS_RENAME.get(df_name):
             dataframe = dataframe.rename(columns=new_cols)
@@ -200,9 +209,7 @@ def upload_dataframes(
             list[list[object]],
             [dataframe.columns.tolist(), *dataframe.values.tolist()],
         )
-        worksheet = spreadsheet.get_worksheet(index)
-        if worksheet is None:
-            raise ValueError(f"La hoja {index} no existe en la hoja de cálculo.")
+        worksheet = spreadsheet.worksheet(constants.OUTPUT_WORKSHEET_TABS[df_name])
 
         worksheet.clear()
         worksheet.update(formatted_data)

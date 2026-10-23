@@ -30,12 +30,14 @@ def test_report_layout_uses_dynamic_date_and_month_formulas() -> None:
 
     assert values[3] == ["Desde", "=DATE(2025,11,1)"]
     assert values[4] == ["Hasta", "=DATE(2026,10,15)"]
-    assert values[8][1] == "=SUM(B18:B137)"
-    assert values[16][0] == "Mes"
-    assert str(values[17][0]).startswith("=TEXT(DATE(YEAR($B$4)")
-    assert len(values) == finance_report.TOP_EXPENSES_FIRST_ROW
-    assert "QUERY(" in str(values[-1][0])
-    assert "limit 10" in str(values[-1][0])
+    assert values[8][1] == "=SUM(B25:B144)"
+    assert values[16][0] == "Alquiler"
+    assert values[23][0] == "Mes"
+    assert str(values[24][0]).startswith("=TEXT(DATE(YEAR($B$4)")
+    assert len(values) == finance_report.OTHER_EXPENSES_FIRST_ROW
+    assert "limit 10" in str(values[finance_report.TOP_EXPENSES_FIRST_ROW - 1][0])
+    assert "limit 20" in str(values[-1][0])
+    assert "G = 'Otros'" in str(values[-1][0])
 
 
 def test_spanish_locale_uses_semicolon_formula_separators() -> None:
@@ -49,8 +51,8 @@ def test_spanish_locale_uses_semicolon_formula_separators() -> None:
     )
 
     assert values[3][1] == "=DATE(2025;11;1)"
-    assert "SUMIFS(" in str(values[17][1])
-    assert ';"cuota";' in str(values[17][1])
+    assert "SUMIFS(" in str(values[24][1])
+    assert ';"cuota";' in str(values[24][1])
 
 
 def test_report_rejects_reversed_date_ranges() -> None:
@@ -64,6 +66,9 @@ def test_report_rejects_reversed_date_ranges() -> None:
 def test_existing_report_is_not_recreated() -> None:
     spreadsheet_mock = Mock()
     existing = spreadsheet_mock.worksheet.return_value
+    existing.row_count = 200
+    existing.col_count = 11
+    spreadsheet_mock.worksheets.return_value = [existing]
 
     result = finance_report.ensure_finance_report_sheet(
         cast(gspread.Spreadsheet, spreadsheet_mock),
@@ -71,4 +76,5 @@ def test_existing_report_is_not_recreated() -> None:
     )
 
     assert result is existing
+    existing.update_index.assert_called_once_with(0)
     spreadsheet_mock.add_worksheet.assert_not_called()
