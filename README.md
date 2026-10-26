@@ -3,6 +3,9 @@
 Aplicación de Streamlit para transformar extractos bancarios de Excel y actualizar
 las hojas de cálculo de tesorería del GEM.
 
+El repositorio también incluye una aplicación independiente para crear facturas
+de reservas y archivarlas en Google Drive.
+
 ## Características
 
 - Carga archivos `.xls` y normaliza los movimientos bancarios.
@@ -147,6 +150,45 @@ extracto actual.
 uv run streamlit run main.py
 ```
 
+La aplicación pública de facturas se ejecuta en un proceso independiente:
+
+```bash
+uv run streamlit run invoice_app.py
+```
+
+Ambas aplicaciones usan la misma cuenta de servicio, configurada en
+`gcp_credentials`. La carpeta raíz se puede sobreescribir con el secreto opcional
+`invoice_root_folder_id`; por defecto se usa la carpeta `2 IVA`.
+
+## Facturas de reservas
+
+El formulario crea una única carpeta dentro de:
+
+```text
+2 IVA/<año>/GEM IVA <trimestre>T <año>/Facturas emitidas (ingresos)/
+```
+
+La app genera exclusivamente un PDF. No guarda un XLSX editable. El diseño,
+el logotipo y la imagen de sello y firma están incluidos en `assets/`, y el
+importe se calcula como:
+
+```text
+noches × participantes × cuota por participante
+```
+
+La cuota introducida incluye IVA. La base imponible y la cuota de IVA se
+desglosan en el documento. Las reservas de un solo día se facturan como una
+noche para evitar documentos de importe cero.
+
+Antes de crear una carpeta, la app calcula un hash no reversible de los datos y
+lo guarda en las propiedades privadas de la carpeta de Drive. Si se repite la
+operación, se muestra el número y el enlace de la factura existente en vez de
+crear otra.
+
+La carpeta raíz debe permanecer en acceso restringido. Los enlaces devueltos no
+conceden permisos por sí solos: cada persona que los abra debe ser socio GEM con
+acceso a la carpeta compartida.
+
 Para regenerar directamente la hoja de producción con el extracto más reciente
 guardado en `private/`:
 
@@ -186,6 +228,9 @@ pruebas unitarias.
 
 ```text
 main.py                  Interfaz de Streamlit
+invoice_app.py           Formulario público de facturas de reservas
+invoicing/               Validación, numeración, PDF y acceso a Drive
+assets/                  Logotipo e imagen de sello y firma
 drag_drop/constants.py   Cuotas y nombres de columnas
 drag_drop/members.py     Lectura y validación del directorio privado
 drag_drop/utils.py       Procesamiento de Excel y publicación en Google Sheets
