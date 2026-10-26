@@ -158,18 +158,40 @@ def test_number_parser_rejects_another_year() -> None:
     assert extract_invoice_number("Factura 26-2025 Ejemplo", 2026) is None
 
 
-def test_next_number_uses_one_drive_search() -> None:
+def test_latest_2026_invoice_stays_scoped_to_invoice_tree() -> None:
     service = Mock()
-    service.files.return_value.list.return_value.execute.return_value = {
-        "files": [
-            {"name": "Factura 26-2026 Ejemplo"},
-            {"name": "Factura 4-2025 Ejemplo"},
-        ]
-    }
+    execute = service.files.return_value.list.return_value.execute
+    execute.side_effect = [
+        {"files": [{"id": "year", "name": "2026"}]},
+        {
+            "files": [
+                {
+                    "id": f"quarter-{quarter}",
+                    "name": f"GEM IVA {quarter}T 2026",
+                }
+                for quarter in range(1, 5)
+            ]
+        },
+        {
+            "files": [
+                {
+                    "id": f"emitted-{quarter}",
+                    "name": "Facturas emitidas (ingresos)",
+                }
+                for quarter in range(1, 5)
+            ]
+        },
+        {
+            "files": [
+                {"name": f"Factura {number}-2026 Ejemplo"}
+                for number in (17, 21, 22, 23, 24, 25, 26)
+            ]
+        },
+    ]
     store = InvoiceDriveStore(service)
 
-    assert store.next_invoice_number(date(2026, 10, 26)) == 27
-    service.files.return_value.list.assert_called_once()
+    assert store.last_invoice_number(2026) == 26
+    assert execute.call_count == 4
 
 
 def test_duplicate_fingerprint_ignores_invoice_date_and_whitespace() -> None:

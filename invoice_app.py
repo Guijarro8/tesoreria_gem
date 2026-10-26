@@ -76,7 +76,7 @@ def _next_number_for_preview(
     *,
     invoice_date: date,
 ) -> int | None:
-    cache_key = f"invoice_preview_number_{invoice_date.isoformat()}"
+    cache_key = _preview_cache_key(invoice_date)
     try:
         store = _load_invoice_store()
         cached = cast(int | None, st.session_state.get(cache_key))
@@ -310,9 +310,7 @@ def main() -> None:
         )
         return
 
-    st.session_state[f"invoice_preview_number_{invoice_date.isoformat()}"] = (
-        result.number + 1
-    )
+    st.session_state[_preview_cache_key(invoice_date)] = result.number + 1
     _show_created_invoice(result, invoice_date=invoice_date)
     st.code(
         build_invoice_name(
@@ -322,6 +320,10 @@ def main() -> None:
         ),
         language=None,
     )
+
+
+def _preview_cache_key(invoice_date: date) -> str:
+    return f"invoice_preview_number_scoped_{invoice_date.isoformat()}"
 
 
 if __name__ == "__main__":

@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import re
+from collections.abc import Iterable
 from dataclasses import dataclass
 from datetime import date
 from io import BytesIO
@@ -74,58 +75,80 @@ class InvoiceDriveStore:
         return cls(service, root_folder_id=root_folder_id)
 
     def next_invoice_number(self, invoice_date: date) -> int:
-        numbers = self._invoice_numbers_by_name_search(invoice_date.year)
-        if numbers:
-            return max(numbers) + 1
-        return self._next_invoice_number_from_tree(invoice_date)
+        return self.last_invoice_number(invoice_date.year) + 1
 
-    def _invoice_numbers_by_name_search(self, year: int) -> list[int]:
-        response = (
-            self._service.files()
-            .list(
-                q=(
-                    f"mimeType = '{_FOLDER_MIME_TYPE}' and "
-                    f"name contains 'Factura' and name contains '-{year}' "
-                    "and trashed = false"
-                ),
-                fields="files(name)",
-                pageSize=1000,
-                supportsAllDrives=True,
-                includeItemsFromAllDrives=True,
-            )
-            .execute(num_retries=2)
+    def last_invoice_number(self, year: int) -> int:
+        """Return the highest invoice number inside the configured invoice tree."""
+
+        year_folders = self._list_matching_folders(
+            f"'{self._root_folder_id}' in parents and name = '{year}'"
         )
+        if not year_folders:
+            return 0
+        year_folder_id = str(year_folders[0]["id"])
+
+        quarter_folders = [
+            folder
+            for folder in self._list_matching_folders(
+                f"'{year_folder_id}' in parents and name contains 'GEM IVA'"
+            )
+            if (
+                (match := _QUARTER_PATTERN.fullmatch(str(folder.get("name", ""))))
+                is not None
+                and int(match.group(2)) == year
+            )
+        ]
+        if not quarter_folders:
+            return 0
+
+        emitted_folders = [
+            folder
+            for folder in self._list_matching_folders(
+                self._parent_query(str(folder["id"]) for folder in quarter_folders)
+            )
+            if str(folder.get("name", "")).casefold() in _EMITTED_NAMES
+        ]
+        if not emitted_folders:
+            return 0
+
         numbers: list[int] = []
-        for item in response.get("files", []):
+        for item in self._list_matching_folders(
+            self._parent_query(str(folder["id"]) for folder in emitted_folders)
+            + f" and name contains 'Factura' and name contains '-{year}'"
+        ):
             number = extract_invoice_number(str(item.get("name", "")), year)
             if number is not None:
                 numbers.append(number)
-        return numbers
+        return max(numbers, default=0)
 
-    def _next_invoice_number_from_tree(self, invoice_date: date) -> int:
-        year_folder = self._find_child_folder(
-            self._root_folder_id,
-            year_folder_name(invoice_date),
-        )
-        if year_folder is None:
-            return 1
-
-        numbers: list[int] = []
-        for folder in self._list_child_folders(year_folder["id"]):
-            match = _QUARTER_PATTERN.fullmatch(str(folder.get("name", "")))
-            if match is None or int(match.group(2)) != invoice_date.year:
-                continue
-            emitted = self._find_emitted_folder(str(folder["id"]))
-            if emitted is None:
-                continue
-            for invoice_folder in self._list_child_folders(emitted["id"]):
-                number = extract_invoice_number(
-                    str(invoice_folder.get("name", "")),
-                    invoice_date.year,
+    def _list_matching_folders(self, query: str) -> list[dict[str, Any]]:
+        items: list[dict[str, Any]] = []
+        page_token: str | None = None
+        while True:
+            response = (
+                self._service.files()
+                .list(
+                    q=(
+                        f"mimeType = '{_FOLDER_MIME_TYPE}' and "
+                        f"({query}) and trashed = false"
+                    ),
+                    fields="nextPageToken,files(id,name)",
+                    pageSize=1000,
+                    pageToken=page_token,
+                    supportsAllDrives=True,
+                    includeItemsFromAllDrives=True,
                 )
-                if number is not None:
-                    numbers.append(number)
-        return max(numbers, default=0) + 1
+                .execute(num_retries=2)
+            )
+            items.extend(cast(list[dict[str, Any]], response.get("files", [])))
+            page_token = cast(str | None, response.get("nextPageToken"))
+            if not page_token:
+                return items
+
+    @staticmethod
+    def _parent_query(parent_ids: Iterable[str]) -> str:
+        parents = " or ".join(f"'{parent_id}' in parents" for parent_id in parent_ids)
+        return f"({parents})" if parents else "(false)"
 
     def create_invoice(
         self,
