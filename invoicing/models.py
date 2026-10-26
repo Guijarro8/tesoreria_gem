@@ -293,7 +293,10 @@ def build_free_invoice(
     """Normalize and validate a fully configurable invoice."""
 
     normalized_custom_name = _clean(custom_name)
-    normalized_description = " ".join(description.split())
+    normalized_lines = [
+        " ".join(line.split()) for line in description.strip().splitlines()
+    ]
+    normalized_description = "\n".join(normalized_lines)
     if not normalized_custom_name:
         raise InvoiceValidationError("Falta el nombre personalizado de carpeta y PDF.")
     if len(normalized_custom_name) > 90:
@@ -304,6 +307,8 @@ def build_free_invoice(
         raise InvoiceValidationError("La descripción es obligatoria.")
     if len(normalized_description) > 1_000:
         raise InvoiceValidationError("La descripción no puede superar 1000 caracteres.")
+    if len(normalized_lines) > 8:
+        raise InvoiceValidationError("La descripción no puede superar 8 líneas.")
     normalized_total = total_including_vat.quantize(
         _CENTS,
         rounding=ROUND_HALF_UP,

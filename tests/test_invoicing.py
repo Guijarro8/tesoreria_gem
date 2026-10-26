@@ -130,6 +130,9 @@ def test_free_invoice_uses_custom_name_and_configurable_amount() -> None:
     invoice = _free_invoice()
 
     assert invoice.kind is InvoiceKind.LIBRE
+    assert invoice.description == (
+        "Cuota anual de colaboración.\nSegunda línea del concepto."
+    )
     assert invoice.taxable_base == Decimal("100.00")
     assert invoice.vat_amount == Decimal("21.00")
     assert invoice.total_including_vat == Decimal("121.00")
@@ -208,7 +211,8 @@ def test_pdf_contains_invoice_data_and_images() -> None:
     assert "27-2026" in text
     assert "Grupo Scout Yelmo" in text
     assert "refugio de La Lastra" in text
-    assert "35,00 €" in text
+    assert "35,00" in text
+    assert "€" in text
     resources = cast(dict[str, Any], reader.pages[0]["/Resources"])
     assert len(resources["/XObject"]) >= 2
 
@@ -226,8 +230,10 @@ def test_free_invoice_pdf_uses_standard_images_and_custom_description() -> None:
     assert "Entidad Libre Sintética" in text
     assert "Cuota anual de colaboración." in text
     assert "Segunda línea del concepto." in text
-    assert "100,00 €" in text
-    assert "21,00 €" in text
+    assert "Cuota anual de colaboración.\nSegunda línea del concepto." in text
+    assert "100,00" in text
+    assert "21,00" in text
+    assert "€" in text
     assert "refugio de" not in text
     resources = cast(dict[str, Any], reader.pages[0]["/Resources"])
     assert len(resources["/XObject"]) >= 2

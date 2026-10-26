@@ -179,9 +179,12 @@ La app crea una única carpeta dentro de:
 2 IVA/<año>/GEM IVA <trimestre>T <año>/Facturas emitidas (ingresos)/
 ```
 
-La app genera exclusivamente un PDF. No guarda un XLSX editable. El diseño,
-el logotipo y la imagen de sello y firma están incluidos en `assets/`, y el
-importe se calcula como:
+La app genera exclusivamente un PDF. No guarda un XLSX editable. El documento
+parte de `assets/invoice_template.pdf`, una plantilla sin datos personales
+derivada de las facturas históricas. Conserva el diseño original, el logotipo,
+el sello, la firma y la distribución exacta de los campos.
+
+En las facturas de reserva, el importe se calcula como:
 
 ```text
 noches × participantes × cuota por participante
@@ -190,6 +193,10 @@ noches × participantes × cuota por participante
 La cuota introducida incluye IVA. La base imponible y la cuota de IVA se
 desglosan en el documento. Las reservas de un solo día se facturan como una
 noche para evitar documentos de importe cero.
+
+Las descripciones de las facturas libres conservan sus retornos de carro,
+admitiendo hasta ocho líneas. Si el texto es largo, la app reduce automáticamente
+el tamaño de fuente para mantenerlo dentro del diseño original.
 
 Antes de crear una carpeta, la app calcula un hash no reversible de los datos y
 lo guarda en las propiedades privadas de la carpeta de Drive. Si se repite la
@@ -241,7 +248,7 @@ pruebas unitarias.
 main.py                  Interfaz de Streamlit
 invoice_app.py           Formulario público de facturas de reservas
 invoicing/               Validación, numeración, PDF y acceso a Drive
-assets/                  Logotipo e imagen de sello y firma
+assets/                  Plantilla PDF, logotipo e imagen de sello y firma
 drag_drop/constants.py   Cuotas y nombres de columnas
 drag_drop/members.py     Lectura y validación del directorio privado
 drag_drop/utils.py       Procesamiento de Excel y publicación en Google Sheets
