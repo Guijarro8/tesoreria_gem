@@ -12,7 +12,7 @@ from google.oauth2 import service_account
 from googleapiclient.discovery import build
 from googleapiclient.http import MediaIoBaseUpload
 
-from invoicing.models import Reservation
+from invoicing.models import InvoiceDocument
 from invoicing.naming import (
     build_invoice_name,
     extract_invoice_number,
@@ -100,11 +100,11 @@ class InvoiceDriveStore:
 
     def create_invoice(
         self,
-        reservation: Reservation,
+        invoice: InvoiceDocument,
         *,
         invoice_date: date,
     ) -> InvoiceCreation:
-        existing = self._find_by_hash(reservation.reservation_hash)
+        existing = self._find_by_hash(invoice.invoice_hash)
         if existing is not None:
             number = self._invoice_number_from_metadata(existing, invoice_date.year)
             if existing.get("appProperties", {}).get("invoice_status") == "complete":
@@ -117,28 +117,25 @@ class InvoiceDriveStore:
                 )
             return self._finish_existing_folder(
                 existing,
-                reservation,
+                invoice,
                 invoice_date=invoice_date,
                 number=number,
             )
 
         number = self.next_invoice_number(invoice_date)
         name = build_invoice_name(
-            alias=reservation.alias,
-            starts_on=reservation.starts_on,
-            ends_on=reservation.ends_on,
-            refuge=reservation.refuge,
+            invoice=invoice,
             number=number,
             invoice_date=invoice_date,
         )
         pdf_bytes = build_invoice_pdf(
-            reservation,
+            invoice,
             number=number,
             invoice_date=invoice_date,
         )
         target_id = self._ensure_invoice_folder(invoice_date)
         properties = self._properties(
-            reservation,
+            invoice,
             number=number,
             status="pending_upload",
             invoice_date=invoice_date,
@@ -178,7 +175,7 @@ class InvoiceDriveStore:
     def _finish_existing_folder(
         self,
         existing: dict[str, Any],
-        reservation: Reservation,
+        invoice: InvoiceDocument,
         *,
         invoice_date: date,
         number: int,
@@ -201,7 +198,7 @@ class InvoiceDriveStore:
             )
 
         pdf_bytes = build_invoice_pdf(
-            reservation,
+            invoice,
             number=number,
             invoice_date=invoice_date,
         )
@@ -311,10 +308,10 @@ class InvoiceDriveStore:
             if not page_token:
                 return items
 
-    def _find_by_hash(self, reservation_hash: str) -> dict[str, Any] | None:
+    def _find_by_hash(self, invoice_hash: str) -> dict[str, Any] | None:
         query = (
-            "appProperties has { key='reservation_hash' and "
-            f"value='{reservation_hash}' }} and trashed=false"
+            "appProperties has { key='invoice_hash' and "
+            f"value='{invoice_hash}' }} and trashed=false"
         )
         response = (
             self._service.files()
@@ -364,7 +361,7 @@ class InvoiceDriveStore:
                     "name": name,
                     "parents": [folder_id],
                     "appProperties": {
-                        "reservation_hash": properties["reservation_hash"],
+                        "invoice_hash": properties["invoice_hash"],
                         "invoice_number": properties["invoice_number"],
                     },
                 },
@@ -393,16 +390,16 @@ class InvoiceDriveStore:
 
     @staticmethod
     def _properties(
-        reservation: Reservation,
+        invoice: InvoiceDocument,
         *,
         number: int,
         status: str,
         invoice_date: date,
     ) -> dict[str, str]:
         return {
-            "reservation_hash": reservation.reservation_hash,
+            "invoice_hash": invoice.invoice_hash,
             "invoice_number": str(number),
             "invoice_status": status,
             "invoice_quarter": str(invoice_quarter(invoice_date)),
-            "refuge": reservation.refuge.short_name,
+            "invoice_kind": invoice.kind.value,
         }

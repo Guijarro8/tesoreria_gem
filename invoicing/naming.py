@@ -6,7 +6,7 @@ import re
 import unicodedata
 from datetime import date
 
-from invoicing.models import Refuge
+from invoicing.models import FreeInvoice, InvoiceDocument, Reservation
 
 _WEEKDAY_PREFIXES = ("L", "M", "X", "J", "V", "S", "D")
 _MONTH_NAMES = (
@@ -84,18 +84,19 @@ def date_code(starts_on: date, ends_on: date) -> str:
 
 def build_invoice_name(
     *,
-    alias: str,
-    starts_on: date,
-    ends_on: date,
-    refuge: Refuge,
+    invoice: InvoiceDocument,
     number: int,
     invoice_date: date,
 ) -> str:
-    alias_slug = slugify_alias(alias)
-    code = date_code(starts_on, ends_on)
-    return (
-        f"Factura {number}-{invoice_date.year} {alias_slug}_{code} {refuge.short_name}"
-    )
+    if isinstance(invoice, Reservation):
+        alias_slug = slugify_alias(invoice.alias)
+        code = date_code(invoice.starts_on, invoice.ends_on)
+        suffix = f"{alias_slug}_{code} {invoice.refuge.short_name}"
+    elif isinstance(invoice, FreeInvoice):
+        suffix = slugify_alias(invoice.custom_name)
+    else:
+        raise TypeError("Unsupported invoice type")
+    return f"Factura {number}-{invoice_date.year} {suffix}"
 
 
 def invoice_pdf_filename(folder_name: str) -> str:
@@ -108,20 +109,14 @@ def invoice_pdf_filename(folder_name: str) -> str:
 
 def preview_invoice_name(
     *,
-    alias: str,
-    starts_on: date,
-    ends_on: date,
-    refuge: Refuge,
+    invoice: InvoiceDocument,
     invoice_date: date,
     number: int | None = None,
 ) -> str:
     """Return a name preview without implying that a number is available."""
 
     return build_invoice_name(
-        alias=alias,
-        starts_on=starts_on,
-        ends_on=ends_on,
-        refuge=refuge,
+        invoice=invoice,
         number=number or 0,
         invoice_date=invoice_date,
     ).replace("Factura 0-", "Factura N-", 1)

@@ -9,11 +9,15 @@ from typing import Any, cast
 
 import pytest
 from pypdf import PdfReader
+from streamlit.testing.v1 import AppTest
 
 from invoicing.models import (
+    FreeInvoice,
+    InvoiceKind,
     InvoiceValidationError,
     Refuge,
     Reservation,
+    build_free_invoice,
     build_reservation,
 )
 from invoicing.naming import (
@@ -41,6 +45,24 @@ def _reservation(*, alias: str = "Yelmo") -> Reservation:
         participants=5,
         rate_per_participant=Decimal("7.00"),
         vat_rate=Decimal("10"),
+    )
+
+
+def _free_invoice(
+    *,
+    custom_name: str = "Cuota anual",
+    invoice_date: date = date(2026, 10, 26),
+) -> FreeInvoice:
+    return build_free_invoice(
+        official_name="Entidad Libre Sintética",
+        custom_name=custom_name,
+        address="Avenida de Prueba 2, Madrid",
+        tax_id="G12345674",
+        contact="libre@example.test",
+        description="Cuota anual de colaboración.\nSegunda línea del concepto.",
+        invoice_date=invoice_date,
+        total_including_vat=Decimal("121.00"),
+        vat_rate=Decimal("21"),
     )
 
 
@@ -74,12 +96,10 @@ def test_same_day_reservation_is_billed_as_one_night() -> None:
 
 def test_same_month_date_code_and_invoice_name() -> None:
     assert date_code(date(2026, 10, 3), date(2026, 10, 4)) == "S3-D4-oct-2026"
+    reservation = _reservation()
     assert (
         build_invoice_name(
-            alias="Yelmo",
-            starts_on=date(2026, 10, 3),
-            ends_on=date(2026, 10, 4),
-            refuge=Refuge.LA_LASTRA,
+            invoice=reservation,
             number=25,
             invoice_date=date(2026, 10, 8),
         )
@@ -96,16 +116,31 @@ def test_cross_month_date_code_matches_agreed_example() -> None:
 
 
 def test_alias_is_safe_for_drive_files() -> None:
+    reservation = _reservation(alias="  Grupo Ágil / Norte  ")
     name = build_invoice_name(
-        alias="  Grupo Ágil / Norte  ",
-        starts_on=date(2026, 10, 3),
-        ends_on=date(2026, 10, 3),
-        refuge=Refuge.EL_MORTERO,
+        invoice=reservation,
         number=1,
-        invoice_date=date(2026, 10, 3),
+        invoice_date=date(2026, 10, 8),
     )
 
-    assert name.startswith("Factura 1-2026 Grupo_Agil_Norte_S3-oct-2026 Mortero")
+    assert name == "Factura 1-2026 Grupo_Agil_Norte_S3-D4-oct-2026 Lastra"
+
+
+def test_free_invoice_uses_custom_name_and_configurable_amount() -> None:
+    invoice = _free_invoice()
+
+    assert invoice.kind is InvoiceKind.LIBRE
+    assert invoice.taxable_base == Decimal("100.00")
+    assert invoice.vat_amount == Decimal("21.00")
+    assert invoice.total_including_vat == Decimal("121.00")
+    assert (
+        build_invoice_name(
+            invoice=invoice,
+            number=27,
+            invoice_date=invoice.invoice_date,
+        )
+        == "Factura 27-2026 Cuota_anual"
+    )
 
 
 def test_quarter_uses_invoice_date() -> None:
@@ -122,7 +157,16 @@ def test_duplicate_fingerprint_ignores_invoice_date_and_whitespace() -> None:
     first = _reservation()
     second = _reservation(alias=" Yelmo ")
 
-    assert first.reservation_hash == second.reservation_hash
+    assert first.invoice_hash == second.invoice_hash
+
+
+def test_free_invoice_fingerprint_includes_invoice_date() -> None:
+    first = _free_invoice()
+    second = _free_invoice(custom_name=" Cuota   anual ")
+    another_date = _free_invoice(invoice_date=date(2026, 10, 27))
+
+    assert first.invoice_hash == second.invoice_hash
+    assert first.invoice_hash != another_date.invoice_hash
 
 
 def test_invalid_cif_is_rejected() -> None:
@@ -167,3 +211,51 @@ def test_pdf_contains_invoice_data_and_images() -> None:
     assert "35,00 €" in text
     resources = cast(dict[str, Any], reader.pages[0]["/Resources"])
     assert len(resources["/XObject"]) >= 2
+
+
+def test_free_invoice_pdf_uses_standard_images_and_custom_description() -> None:
+    invoice = _free_invoice()
+    pdf_bytes = build_invoice_pdf(
+        invoice,
+        number=27,
+        invoice_date=invoice.invoice_date,
+    )
+
+    reader = PdfReader(BytesIO(pdf_bytes))
+    text = "\n".join(page.extract_text() or "" for page in reader.pages)
+    assert "Entidad Libre Sintética" in text
+    assert "Cuota anual de colaboración." in text
+    assert "Segunda línea del concepto." in text
+    assert "100,00 €" in text
+    assert "21,00 €" in text
+    assert "refugio de" not in text
+    resources = cast(dict[str, Any], reader.pages[0]["/Resources"])
+    assert len(resources["/XObject"]) >= 2
+
+
+def test_invoice_app_offers_reservation_and_free_types() -> None:
+    app = AppTest.from_file("invoice_app.py")
+    app.run(timeout=20)
+
+    assert not app.exception
+    type_selector = next(
+        item for item in app.selectbox if item.label == "Tipo de factura *"
+    )
+    assert type_selector.options == [
+        InvoiceKind.RESERVA.value,
+        InvoiceKind.LIBRE.value,
+    ]
+    assert app.button[0].disabled
+
+    type_selector.set_value(InvoiceKind.LIBRE.value)
+    app.run(timeout=20)
+    assert not app.exception
+    assert [item.label for item in app.text_area] == [
+        "Domicilio *",
+        "Descripción o concepto *",
+    ]
+    assert [item.label for item in app.date_input] == ["Fecha de factura *"]
+    assert [item.label for item in app.number_input] == [
+        "Importe total (IVA incluido) *",
+        "Tipo de IVA (%) *",
+    ]

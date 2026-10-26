@@ -160,9 +160,20 @@ Ambas aplicaciones usan la misma cuenta de servicio, configurada en
 `gcp_credentials`. La carpeta raíz se puede sobreescribir con el secreto opcional
 `invoice_root_folder_id`; por defecto se usa la carpeta `2 IVA`.
 
-## Facturas de reservas
+## Facturas
 
-El formulario crea una única carpeta dentro de:
+El formulario permite elegir entre dos tipos:
+
+- `Reserva`: usa los datos del grupo, fechas, refugio, participantes y cuota.
+- `Libre`: permite indicar una fecha de factura, razón social, datos fiscales,
+  descripción, importe total con IVA incluido, tipo de IVA y el nombre
+  personalizado de la carpeta y del PDF.
+
+Ambos tipos usan el mismo diseño, logotipo, sello y firma. El número de factura
+sigue siendo automático y se antepone al nombre personalizado en las facturas
+libres.
+
+La app crea una única carpeta dentro de:
 
 ```text
 2 IVA/<año>/GEM IVA <trimestre>T <año>/Facturas emitidas (ingresos)/

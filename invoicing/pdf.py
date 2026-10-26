@@ -16,7 +16,7 @@ from reportlab.pdfbase.pdfmetrics import stringWidth
 from reportlab.pdfgen import canvas
 from reportlab.platypus import Paragraph
 
-from invoicing.models import Reservation
+from invoicing.models import FreeInvoice, InvoiceDocument, Reservation
 from invoicing.naming import format_date_span
 
 _ASSET_DIRECTORY = Path(__file__).resolve().parent.parent / "assets"
@@ -118,7 +118,7 @@ def _fit_text(text: str, *, font_name: str, font_size: float, width: float) -> s
 
 
 def build_invoice_pdf(
-    reservation: Reservation,
+    invoice: InvoiceDocument,
     *,
     number: int,
     invoice_date: date,
@@ -130,7 +130,7 @@ def build_invoice_pdf(
     pdf = canvas.Canvas(output, pagesize=(page_width, page_height))
     pdf.setTitle(f"Factura {number}-{invoice_date.year}")
     pdf.setAuthor("GEM")
-    pdf.setSubject("Factura de reserva")
+    pdf.setSubject("Factura")
 
     small = _paragraph_style(font_size=7.4, leading=9.2)
     muted = _paragraph_style(font_size=7.4, leading=9.2, color=_MUTED)
@@ -206,16 +206,16 @@ def build_invoice_pdf(
     pdf.setFillColor(_DARK)
     pdf.setFont("Helvetica-Bold", 9.2)
     official_name = _fit_text(
-        reservation.official_name,
+        invoice.official_name,
         font_name="Helvetica-Bold",
         font_size=9.2,
         width=right - value_x,
     )
     pdf.drawString(value_x, client_top, official_name)
     rows = (
-        ("Domicilio:", reservation.address),
-        ("CIF:", reservation.tax_id),
-        ("Contacto:", reservation.contact),
+        ("Domicilio:", invoice.address),
+        ("CIF:", invoice.tax_id),
+        ("Contacto:", invoice.contact),
     )
     cursor = client_top
     for row_label, row_value in rows:
@@ -239,7 +239,7 @@ def build_invoice_pdf(
     pdf.setFont("Helvetica-Bold", 9.2)
     pdf.drawString(left, concept_top, "Por el siguiente concepto:")
     concept_y = concept_top - 4 * mm
-    concept_height = 28 * mm
+    concept_height = 34 * mm if isinstance(invoice, FreeInvoice) else 28 * mm
     pdf.setFillColor(_LIGHT_GREY)
     pdf.setStrokeColor(_BORDER)
     pdf.roundRect(
@@ -252,42 +252,49 @@ def build_invoice_pdf(
         stroke=1,
     )
 
-    participant_word = "persona" if reservation.participants == 1 else "personas"
-    activity_dates = format_date_span(reservation.starts_on, reservation.ends_on)
-    concept = (
-        f"Asistencia logística para actividad de educación ambiental en el refugio "
-        f"de {reservation.refuge.display_name} "
-        f"{activity_dates}, con la participación de {reservation.participants} "
-        f"{participant_word}. {_PRICE_DESCRIPTION}"
-    )
+    calculation: str | None = None
+    if isinstance(invoice, Reservation):
+        participant_word = "persona" if invoice.participants == 1 else "personas"
+        activity_dates = format_date_span(invoice.starts_on, invoice.ends_on)
+        concept = escape(
+            f"Asistencia logística para actividad de educación ambiental en el "
+            f"refugio de {invoice.refuge.display_name} {activity_dates}, con la "
+            f"participación de {invoice.participants} {participant_word}. "
+            f"{_PRICE_DESCRIPTION}"
+        )
+        calculation = (
+            f"{invoice.nights} noche(s) x {invoice.participants} "
+            f"{participant_word} x {_money(invoice.rate_per_participant)}"
+        )
+    elif isinstance(invoice, FreeInvoice):
+        concept = escape(invoice.description).replace("\n", "<br/>")
+    else:
+        raise TypeError("Unsupported invoice type")
     concept_width = right - left - 9 * mm
     concept_cursor = _draw_paragraph(
         pdf,
-        escape(concept),
+        concept,
         x=left + 4 * mm,
         y=concept_y - 3 * mm,
         width=concept_width,
         style=body,
     )
-    calculation = (
-        f"{reservation.nights} noche(s) x {reservation.participants} "
-        f"{participant_word} x {_money(reservation.rate_per_participant)}"
-    )
-    pdf.setFillColor(_MUTED)
-    pdf.setFont("Helvetica", 7.6)
-    pdf.drawString(
-        left + 4 * mm,
-        max(concept_y - concept_height + 2.5 * mm, concept_cursor - 1 * mm),
-        calculation,
-    )
+    if calculation is not None:
+        pdf.setFillColor(_MUTED)
+        pdf.setFont("Helvetica", 7.6)
+        pdf.drawString(
+            left + 4 * mm,
+            max(concept_y - concept_height + 2.5 * mm, concept_cursor - 1 * mm),
+            calculation,
+        )
 
     table_width = 72 * mm
     table_x = right - table_width
     table_bottom = concept_y - concept_height - 5 * mm
     row_height = 7 * mm
     rows = (
-        ("Base imponible", _money(reservation.taxable_base)),
-        (f"{_number(reservation.vat_rate)} % IVA", _money(reservation.vat_amount)),
+        ("Base imponible", _money(invoice.taxable_base)),
+        (f"{_number(invoice.vat_rate)} % IVA", _money(invoice.vat_amount)),
     )
     pdf.setStrokeColor(_BORDER)
     for index, (row_label, row_value) in enumerate(rows):
@@ -320,7 +327,7 @@ def build_invoice_pdf(
     pdf.drawRightString(
         table_x + table_width - 2.5 * mm,
         total_y + 2.2 * mm,
-        _money(reservation.total_including_vat),
+        _money(invoice.total_including_vat),
     )
 
     signature_width = 31 * mm
