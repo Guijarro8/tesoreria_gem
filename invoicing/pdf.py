@@ -198,6 +198,13 @@ def _build_overlay(
     pdf.drawString(567.79, _PAGE_HEIGHT - 396.94, "€")
     _draw_amount_table(pdf, invoice)
 
+    # The historical template's top border crosses the dynamic invoice and date
+    # fields. Redrawing it keeps the border continuous after those fields are
+    # cleared from the reusable background.
+    pdf.setStrokeColorRGB(*_BLACK)
+    pdf.setLineWidth(0.96)
+    pdf.line(102.54, _PAGE_HEIGHT - 187.55, 726.16, _PAGE_HEIGHT - 187.55)
+
     pdf.showPage()
     pdf.save()
     return output.getvalue()
