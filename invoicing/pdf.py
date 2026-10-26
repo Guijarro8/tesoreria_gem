@@ -154,20 +154,6 @@ def _build_overlay(
     pdf = canvas.Canvas(output, pagesize=(_PAGE_WIDTH, _PAGE_HEIGHT))
     pdf.setFillColorRGB(*_BLACK)
 
-    # Clear the segmented outer border inherited from the historical template
-    # and replace it with one continuous box. The wider white stroke hides all
-    # original fragments, including those split by redacted dynamic fields.
-    box_x = 102.0
-    box_y = 61.80
-    box_width = 623.74
-    box_height = 345.43
-    pdf.setStrokeColorRGB(1, 1, 1)
-    pdf.setLineWidth(3.0)
-    pdf.rect(box_x, box_y, box_width, box_height, fill=0, stroke=1)
-    pdf.setStrokeColorRGB(*_BLACK)
-    pdf.setLineWidth(0.96)
-    pdf.rect(box_x, box_y, box_width, box_height, fill=0, stroke=1)
-
     pdf.setFont(_BOLD_FONT, 18)
     invoice_code = _fit_text(
         f"{number}-{invoice_date.year}",
