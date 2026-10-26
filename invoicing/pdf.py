@@ -171,9 +171,9 @@ def _build_overlay(
     pdf.setFont(_REGULAR_FONT, 12)
     client_values = (
         (214.13, invoice.official_name),
-        (228.89, invoice.address),
-        (242.69, invoice.tax_id),
-        (257.93, invoice.contact),
+        (231.89, invoice.address),
+        (245.69, invoice.tax_id),
+        (260.93, invoice.contact),
     )
     for origin_y, value in client_values:
         pdf.drawString(
