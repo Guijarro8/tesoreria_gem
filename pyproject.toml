@@ -5,8 +5,11 @@ description = "Cargar extracto bancario en hoja de cálculo de Google Sheets"
 readme = "README.md"
 requires-python = ">=3.13"
 dependencies = [
+    "google-api-python-client>=2.160.0",
     "gspread>=6.2.0",
     "pandas>=2.2.3",
+    "pypdf>=5.1.0",
+    "reportlab>=4.2.5",
     "streamlit>=1.43.2",
     "xlrd>=2.0.1",
 ]
