@@ -74,6 +74,35 @@ class InvoiceDriveStore:
         return cls(service, root_folder_id=root_folder_id)
 
     def next_invoice_number(self, invoice_date: date) -> int:
+        numbers = self._invoice_numbers_by_name_search(invoice_date.year)
+        if numbers:
+            return max(numbers) + 1
+        return self._next_invoice_number_from_tree(invoice_date)
+
+    def _invoice_numbers_by_name_search(self, year: int) -> list[int]:
+        response = (
+            self._service.files()
+            .list(
+                q=(
+                    f"mimeType = '{_FOLDER_MIME_TYPE}' and "
+                    f"name contains 'Factura' and name contains '-{year}' "
+                    "and trashed = false"
+                ),
+                fields="files(name)",
+                pageSize=1000,
+                supportsAllDrives=True,
+                includeItemsFromAllDrives=True,
+            )
+            .execute(num_retries=2)
+        )
+        numbers: list[int] = []
+        for item in response.get("files", []):
+            number = extract_invoice_number(str(item.get("name", "")), year)
+            if number is not None:
+                numbers.append(number)
+        return numbers
+
+    def _next_invoice_number_from_tree(self, invoice_date: date) -> int:
         year_folder = self._find_child_folder(
             self._root_folder_id,
             year_folder_name(invoice_date),

@@ -6,11 +6,13 @@ from datetime import date
 from decimal import Decimal
 from io import BytesIO
 from typing import Any, cast
+from unittest.mock import Mock
 
 import pytest
 from pypdf import PdfReader
 from streamlit.testing.v1 import AppTest
 
+from invoicing.drive import InvoiceDriveStore
 from invoicing.models import (
     FreeInvoice,
     InvoiceKind,
@@ -154,6 +156,20 @@ def test_quarter_uses_invoice_date() -> None:
 def test_number_parser_rejects_another_year() -> None:
     assert extract_invoice_number("Factura 26-2026 Ejemplo", 2026) == 26
     assert extract_invoice_number("Factura 26-2025 Ejemplo", 2026) is None
+
+
+def test_next_number_uses_one_drive_search() -> None:
+    service = Mock()
+    service.files.return_value.list.return_value.execute.return_value = {
+        "files": [
+            {"name": "Factura 26-2026 Ejemplo"},
+            {"name": "Factura 4-2025 Ejemplo"},
+        ]
+    }
+    store = InvoiceDriveStore(service)
+
+    assert store.next_invoice_number(date(2026, 10, 26)) == 27
+    service.files.return_value.list.assert_called_once()
 
 
 def test_duplicate_fingerprint_ignores_invoice_date_and_whitespace() -> None:
