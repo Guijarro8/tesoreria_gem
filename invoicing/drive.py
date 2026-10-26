@@ -16,6 +16,7 @@ from invoicing.models import Reservation
 from invoicing.naming import (
     build_invoice_name,
     extract_invoice_number,
+    invoice_pdf_filename,
     invoice_quarter,
     quarter_folder_name,
     year_folder_name,
@@ -157,7 +158,12 @@ class InvoiceDriveStore:
             .execute(num_retries=2)
         )
         folder_id = str(folder["id"])
-        self._upload_pdf(folder_id, name, pdf_bytes, properties)
+        self._upload_pdf(
+            folder_id,
+            invoice_pdf_filename(name),
+            pdf_bytes,
+            properties,
+        )
         complete_properties = dict(properties)
         complete_properties["invoice_status"] = "complete"
         self._update_properties(folder_id, complete_properties)
@@ -200,7 +206,12 @@ class InvoiceDriveStore:
             invoice_date=invoice_date,
         )
         properties = cast(dict[str, str], existing.get("appProperties", {}))
-        self._upload_pdf(folder_id, name, pdf_bytes, properties)
+        self._upload_pdf(
+            folder_id,
+            invoice_pdf_filename(name),
+            pdf_bytes,
+            properties,
+        )
         complete_properties = {
             **properties,
             "invoice_status": "complete",

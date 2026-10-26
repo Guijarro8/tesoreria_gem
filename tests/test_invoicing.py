@@ -21,6 +21,7 @@ from invoicing.naming import (
     date_code,
     extract_invoice_number,
     format_date_span,
+    invoice_pdf_filename,
     invoice_quarter,
     quarter_folder_name,
 )
@@ -82,7 +83,11 @@ def test_same_month_date_code_and_invoice_name() -> None:
             number=25,
             invoice_date=date(2026, 10, 8),
         )
-        == "Factura 25-2026 Yelmo_S3-D4-oct-2026 Lastra OK.pdf"
+        == "Factura 25-2026 Yelmo_S3-D4-oct-2026 Lastra"
+    )
+    assert (
+        invoice_pdf_filename("Factura 25-2026 Yelmo_S3-D4-oct-2026 Lastra")
+        == "Factura 25-2026 Yelmo_S3-D4-oct-2026 Lastra.pdf"
     )
 
 

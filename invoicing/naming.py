@@ -94,9 +94,16 @@ def build_invoice_name(
     alias_slug = slugify_alias(alias)
     code = date_code(starts_on, ends_on)
     return (
-        f"Factura {number}-{invoice_date.year} {alias_slug}_{code} "
-        f"{refuge.short_name} OK.pdf"
+        f"Factura {number}-{invoice_date.year} {alias_slug}_{code} {refuge.short_name}"
     )
+
+
+def invoice_pdf_filename(folder_name: str) -> str:
+    """Return the PDF filename for an invoice folder."""
+
+    if folder_name.casefold().endswith(".pdf"):
+        return folder_name
+    return f"{folder_name}.pdf"
 
 
 def preview_invoice_name(
