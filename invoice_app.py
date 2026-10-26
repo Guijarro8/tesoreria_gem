@@ -97,7 +97,7 @@ def main() -> None:
         page_icon="🧾",
         layout="wide",
     )
-    st.title("Nueva factura")
+    st.title("Nueva factura GEM")
     st.caption("Los enlaces a las facturas requieren permisos de socio GEM.")
 
     invoice_kind = st.selectbox(
