@@ -228,9 +228,15 @@ def test_invalid_cif_is_rejected() -> None:
 
 
 def test_date_span() -> None:
+    assert format_date_span(date(2026, 10, 26), date(2026, 10, 29)) == (
+        "desde el lunes 26 hasta el jueves 29 de octubre de 2026, ambos incluidos"
+    )
+
+
+def test_date_span_for_single_day() -> None:
     assert (
-        format_date_span(date(2026, 10, 3), date(2026, 10, 4))
-        == "el sábado 3 y el domingo 4 de octubre de 2026"
+        format_date_span(date(2026, 10, 26), date(2026, 10, 26))
+        == "el lunes 26 de octubre de 2026"
     )
 
 
