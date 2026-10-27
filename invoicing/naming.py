@@ -153,15 +153,18 @@ def format_date_span(starts_on: date, ends_on: date) -> str:
     end_month = _MONTH_LONG[ends_on.month - 1]
     if starts_on.year == ends_on.year and starts_on.month == ends_on.month:
         return (
-            f"el {start_weekday} {starts_on.day} y el {end_weekday} "
-            f"{ends_on.day} de {start_month} de {starts_on.year}"
+            f"desde el {start_weekday} {starts_on.day} hasta el "
+            f"{end_weekday} {ends_on.day} de {start_month} de "
+            f"{starts_on.year}, ambos incluidos"
         )
     if starts_on.year == ends_on.year:
         return (
-            f"el {start_weekday} {starts_on.day} de {start_month} y el "
-            f"{end_weekday} {ends_on.day} de {end_month} de {starts_on.year}"
+            f"desde el {start_weekday} {starts_on.day} de {start_month} "
+            f"hasta el {end_weekday} {ends_on.day} de {end_month} de "
+            f"{starts_on.year}, ambos incluidos"
         )
     return (
-        f"el {start_weekday} {starts_on.day} de {start_month} de {starts_on.year} "
-        f"y el {end_weekday} {ends_on.day} de {end_month} de {ends_on.year}"
+        f"desde el {start_weekday} {starts_on.day} de {start_month} de "
+        f"{starts_on.year} hasta el {end_weekday} {ends_on.day} de "
+        f"{end_month} de {ends_on.year}, ambos incluidos"
     )
